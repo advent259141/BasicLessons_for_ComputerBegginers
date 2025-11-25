@@ -1,0 +1,2 @@
+# BasicLessons_for_ComputerBinngers
+为计算机小白了解一些计算机基础知识的网页，纯html编写，由gemini3pro创建
