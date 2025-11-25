@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CS入门 Ch.5 - 数字军火库与信息检索</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #0f172a; /* Slate 900 */
+            color: #e2e8f0; /* Slate 200 */
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .gradient-text {
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569; 
+        }
+        
+        .nav-item.active {
+            color: #38bdf8;
+            background: rgba(56, 189, 248, 0.1);
+            border-bottom: 2px solid #38bdf8;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- Icons ---
+        const Icons = {
+            Shield: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>,
+            Search: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>,
+            Globe: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>,
+            CheckSquare: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>,
+            Trash2: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>,
+            Zap: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>,
+            Image: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>,
+            ExternalLink: (props) => <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 24} height={props.size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>,
+            Home: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>,
+            AlertTriangle: () => <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
+            Activity: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>,
+            Server: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>,
+            User: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>,
+            Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>,
+            Cpu: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="15" x2="23" y2="15"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="15" x2="4" y2="15"></line></svg>,
+            Network: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+        };
+
+        // --- Shared Components ---
+        const ToolCard = ({ title, desc, icon, badge, recommended, link }) => (
+            <div className={`p-5 rounded-xl border transition-all duration-300 hover:scale-[1.02] ${recommended ? 'bg-slate-800/80 border-blue-500/50 shadow-lg shadow-blue-500/10' : 'bg-slate-800/40 border-slate-700'}`}>
+                <div className="flex items-start justify-between mb-3">
+                    <div className="p-2 bg-slate-700/50 rounded-lg text-blue-400">
+                        {icon}
+                    </div>
+                    {badge && <span className="text-xs font-bold px-2 py-1 bg-blue-500/20 text-blue-300 rounded-full">{badge}</span>}
+                </div>
+                <h3 className="text-lg font-bold text-slate-100 mb-1 flex items-center gap-2">
+                    {title}
+                    {link && (
+                        <a href={link} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-blue-400 transition-colors" title="Visit Website/GitHub">
+                            <Icons.ExternalLink size={16} />
+                        </a>
+                    )}
+                </h3>
+                <p className="text-sm text-slate-400 leading-relaxed">{desc}</p>
+            </div>
+        );
+
+        const SectionHeader = ({ number, title, subtitle }) => (
+            <div className="mb-8 fade-in">
+                <span className="text-blue-500 font-mono font-bold text-sm tracking-wider uppercase mb-2 block">Part {number}</span>
+                <h2 className="text-3xl font-bold mb-2 text-white">{title}</h2>
+                <p className="text-slate-400 text-lg">{subtitle}</p>
+            </div>
+        );
+
+        // --- Sub-Pages (Components) ---
+
+        const IntroPage = ({ setTab }) => (
+            <div className="text-center pt-20 fade-in">
+                <h1 className="text-5xl md:text-7xl font-bold mb-6 tracking-tight">
+                    数字<span className="gradient-text">军火库</span><br/>与信息检索
+                </h1>
+                <p className="text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed mb-12">
+                    工欲善其事，必先利其器。本章将教你如何打造一个洁癖级的 Windows 系统，并像黑客一样高效地获取全球技术资讯。
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
+                    <button onClick={() => setTab('5.1')} className="p-6 bg-slate-800 rounded-xl border border-slate-700 hover:border-blue-500 hover:bg-slate-800/80 transition group text-left">
+                        <div className="text-blue-400 mb-2"><Icons.Shield /></div>
+                        <h3 className="font-bold text-lg text-white mb-1 group-hover:text-blue-300">系统净化</h3>
+                        <p className="text-sm text-slate-400">告别卡顿与流氓软件</p>
+                    </button>
+                    <button onClick={() => setTab('5.2')} className="p-6 bg-slate-800 rounded-xl border border-slate-700 hover:border-blue-500 hover:bg-slate-800/80 transition group text-left">
+                        <div className="text-purple-400 mb-2"><Icons.Globe /></div>
+                        <h3 className="font-bold text-lg text-white mb-1 group-hover:text-blue-300">冲浪指南</h3>
+                        <p className="text-sm text-slate-400">浏览器调教与网络优化</p>
+                    </button>
+                    <button onClick={() => setTab('5.X')} className="p-6 bg-slate-800 rounded-xl border border-slate-700 hover:border-blue-500 hover:bg-slate-800/80 transition group text-left">
+                        <div className="text-red-400 mb-2"><Icons.Activity /></div>
+                        <h3 className="font-bold text-lg text-white mb-1 group-hover:text-blue-300">网络原理</h3>
+                        <p className="text-sm text-slate-400">VPN、TUN 模式 与 代理区别</p>
+                    </button>
+                    <button onClick={() => setTab('5.3')} className="p-6 bg-slate-800 rounded-xl border border-slate-700 hover:border-blue-500 hover:bg-slate-800/80 transition group text-left">
+                        <div className="text-yellow-400 mb-2 font-bold font-mono text-xl">Git</div>
+                        <h3 className="font-bold text-lg text-white mb-1 group-hover:text-blue-300">GitHub</h3>
+                        <p className="text-sm text-slate-400">开源世界的大门</p>
+                    </button>
+                </div>
+            </div>
+        );
+
+        const SystemCleanupPage = () => {
+            return (
+                <div className="fade-in max-w-4xl mx-auto">
+                    <SectionHeader number="5.1" title="系统净化论：告别卡顿" subtitle="好的维护不是装更多的杀毒软件，而是养成“极简”习惯。" />
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <ToolCard 
+                            title="Geek Uninstaller" 
+                            desc="极简、免费、强制删除残留文件与注册表。彻底告别“流氓软件”卸载不干净的噩梦。" 
+                            icon={<Icons.Trash2 />} 
+                            badge="必装" 
+                            recommended={true} 
+                            link="https://geekuninstaller.com/" 
+                        />
+                        <ToolCard 
+                            title="Microsoft PC Manager" 
+                            desc="微软官方出品，无广告不流氓。替代 360/腾讯管家的最佳选择，只做最纯粹的清理。" 
+                            icon={<Icons.Shield />} 
+                            recommended={true} 
+                            link="https://pcmanager.microsoft.com/" 
+                        />
+                        <ToolCard 
+                            title="Dism++" 
+                            desc="极客向系统优化神器。功能强大但需谨慎使用，建议仅用于基础垃圾清理和启动项管理。" 
+                            icon={<Icons.Zap />} 
+                            link="https://github.com/Chuyu-Team/Dism-Multi-language"
+                        />
+                        <ToolCard 
+                            title="Everything" 
+                            desc="毫秒级全盘搜索，瞬间定位文件。从此告别 Windows 自带的龟速搜索。" 
+                            icon={<Icons.Search />} 
+                            badge="效率神器" 
+                            recommended={true} 
+                            link="https://www.voidtools.com/"
+                        />
+                        <ToolCard 
+                            title="Snipaste" 
+                            desc="F1 截图，F3 贴图。将代码片段或报错信息“钉”在屏幕上，对照写代码的绝对神器。" 
+                            icon={<Icons.Image />} 
+                            badge="生产力" 
+                            recommended={true} 
+                            link="https://zh.snipaste.com/"
+                        />
+                    </div>
+                </div>
+            );
+        };
+
+        const BrowsingGuidePage = () => (
+            <div className="fade-in max-w-4xl mx-auto">
+                <SectionHeader number="5.2" title="冲浪指南：浏览器调教" subtitle="浏览器是程序员的第二操作系统。Chrome/Edge 是你的首选。" />
+                
+                {/* Search Engine Warning Section */}
+                <div className="bg-red-900/10 border border-red-500/20 rounded-2xl p-6 mb-8">
+                    <h3 className="text-xl font-bold mb-4 text-red-400 flex items-center gap-2">
+                        <Icons.AlertTriangle size={24} /> 搜索引擎避坑指南
+                    </h3>
+                    <p className="text-slate-300 mb-6 leading-relaxed">
+                        作为程序员，<strong>搜索能力</strong>决定了解决问题的效率。为什么我们强烈建议避开百度/360？
+                    </p>
+                    <div className="grid md:grid-cols-2 gap-4">
+                        <div className="bg-slate-900/50 p-5 rounded-lg border border-red-500/10 hover:border-red-500/30 transition-colors">
+                            <h4 className="font-bold text-red-300 mb-3 flex items-center gap-2">
+                                <span className="bg-red-500/20 w-6 h-6 rounded-full flex items-center justify-center text-xs">✕</span> 
+                                国内引擎 (Baidu/360)
+                            </h4>
+                            <ul className="text-sm text-slate-400 space-y-3 list-disc pl-4">
+                                <li>
+                                    <strong className="text-red-200">广告铺天盖地：</strong>
+                                    <span className="block mt-1">首页前几条往往是竞价排名的“推广”，极易误导新手。</span>
+                                </li>
+                                <li>
+                                    <strong className="text-red-200">内容农场泛滥：</strong>
+                                    <span className="block mt-1">搜索技术报错时，结果充满大量 CSDN 等平台的低质量复制粘贴文章，格式混乱且无效。</span>
+                                </li>
+                                <li>
+                                    <strong className="text-red-200">信息茧房：</strong>
+                                    <span className="block mt-1">很难检索到全球最新的英文一手技术文档 (如 Stack Overflow, GitHub Issues)。</span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div className="bg-slate-900/50 p-5 rounded-lg border border-emerald-500/10 hover:border-emerald-500/30 transition-colors">
+                            <h4 className="font-bold text-emerald-300 mb-3 flex items-center gap-2">
+                                <span className="bg-emerald-500/20 w-6 h-6 rounded-full flex items-center justify-center text-xs">✓</span>
+                                推荐选择 (Google/Bing)
+                            </h4>
+                            <ul className="text-sm text-slate-400 space-y-3 list-disc pl-4">
+                                <li>
+                                    <strong className="text-emerald-200">精准直达：</strong>
+                                    <span className="block mt-1">技术问题通常能直接定位到官方文档或 Stack Overflow 的高票回答。</span>
+                                </li>
+                                <li>
+                                    <strong className="text-emerald-200">干净纯粹：</strong>
+                                    <span className="block mt-1">广告标识明显且数量少，搜索结果的信息密度极高。</span>
+                                </li>
+                                <li>
+                                    <strong className="text-emerald-200">拥抱全球：</strong>
+                                    <span className="block mt-1">连接全球开发者的智慧，而不仅仅局限于中文互联网。</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 md:p-8 mb-8">
+                    <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><Icons.Zap /> 扩展程序 (Extensions) 三件套</h3>
+                    <div className="space-y-4">
+                        <div className="flex items-start gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-800 group transition-colors hover:border-slate-600">
+                            <div className="font-bold text-red-400 min-w-[140px] flex items-center gap-2">
+                                uBlock Origin
+                                <a href="https://github.com/gorhill/uBlock" target="_blank" className="text-slate-500 hover:text-white"><Icons.ExternalLink size={14}/></a>
+                            </div>
+                            <div className="text-slate-400 text-sm">地表最强广告拦截器，内存占用极低。让你的网页浏览体验重回清爽。</div>
+                        </div>
+                        <div className="flex items-start gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-800 group transition-colors hover:border-slate-600">
+                            <div className="font-bold text-emerald-400 min-w-[140px] flex items-center gap-2">
+                                Tampermonkey
+                                <a href="https://www.tampermonkey.net/" target="_blank" className="text-slate-500 hover:text-white"><Icons.ExternalLink size={14}/></a>
+                            </div>
+                            <div className="text-slate-400 text-sm">“油猴”脚本管理器。可安装各类增强脚本，如“解除网页复制限制”等。</div>
+                        </div>
+                        <div className="flex items-start gap-4 p-4 bg-slate-900/50 rounded-lg border border-slate-800 group transition-colors hover:border-slate-600">
+                            <div className="font-bold text-purple-400 min-w-[140px] flex items-center gap-2">
+                                Immersive Translate
+                                <a href="https://immersive-translate.com/" target="_blank" className="text-slate-500 hover:text-white"><Icons.ExternalLink size={14}/></a>
+                            </div>
+                            <div className="text-slate-400 text-sm">沉浸式翻译。提供中英对照式网页翻译，阅读英文技术文档的绝佳帮手。</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-blue-500/20 rounded-2xl p-6 md:p-8">
+                    <h3 className="text-xl font-bold mb-4 text-blue-100 flex items-center gap-2"><Icons.Globe /> 网络环境优化 (学术/轻量级)</h3>
+                    <div className="flex flex-col sm:flex-row gap-6 items-center">
+                        <div className="flex-1 bg-slate-900 p-5 rounded-xl border border-slate-700 w-full relative">
+                            <a href="https://github.com/BeyondDimension/SteamTools" target="_blank" className="absolute top-4 right-4 text-slate-500 hover:text-white"><Icons.ExternalLink size={18}/></a>
+                            <h4 className="font-bold text-lg mb-2 text-white">Watt Toolkit (原 Steam++)</h4>
+                            <p className="text-sm text-slate-400 mb-4">开源跨平台工具，主要功能包括 GitHub 加速、微软商店加速等。</p>
+                            <div className="text-xs font-mono text-emerald-500 bg-emerald-500/10 px-2 py-1 inline-block rounded">Recommended for Level 1</div>
+                        </div>
+                        <div className="flex-1 text-sm text-slate-400">
+                            <ul className="list-disc pl-5 space-y-2">
+                                <li><strong className="text-slate-200">原理：</strong>修改 hosts 或本地反代加速特定服务。</li>
+                                <li><strong className="text-slate-200">警告：</strong>不要使用来路不明的免费 VPN，注意隐私风险。</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const NetworkGuidePage = () => (
+            <div className="fade-in max-w-4xl mx-auto">
+                <SectionHeader number="5.X" title="网络原理与隧道技术" subtitle="知其然，更要知其所以然。深入理解数据是如何穿过屏障的。" />
+
+                {/* 1. 原理图解 */}
+                <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 mb-8">
+                    <h3 className="text-xl font-bold mb-6 text-white flex items-center gap-2"><Icons.Activity /> 核心原理：代理 (Proxy)</h3>
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm font-mono text-slate-400">
+                       <div className="flex-1 w-full text-center p-4 bg-slate-900 rounded-lg border border-slate-700">
+                           <div className="text-blue-400 mb-2 flex justify-center"><Icons.User /></div>
+                           本机 (Client)
+                       </div>
+                       <div className="text-slate-500 text-xs text-center px-2">→ 加密流量 →</div>
+                       <div className="flex-1 w-full text-center p-4 bg-red-900/20 rounded-lg border border-red-900/50 relative">
+                           <div className="text-red-500 mb-2 flex justify-center"><Icons.Shield /></div>
+                           防火墙 (Firewall)
+                           <div className="text-[10px] text-red-400 mt-1">DPI 深度包检测</div>
+                       </div>
+                       <div className="text-slate-500 text-xs text-center px-2">→ 转发 →</div>
+                       <div className="flex-1 w-full text-center p-4 bg-emerald-900/20 rounded-lg border border-emerald-900/50">
+                           <div className="text-emerald-400 mb-2 flex justify-center"><Icons.Server /></div>
+                           境外节点 (Proxy)
+                       </div>
+                       <div className="text-slate-500 text-xs text-center px-2">→ 访问 →</div>
+                       <div className="flex-1 w-full text-center p-4 bg-slate-900 rounded-lg border border-slate-700">
+                           <div className="text-purple-400 mb-2 flex justify-center"><Icons.Globe /></div>
+                           目标 (GitHub)
+                       </div>
+                    </div>
+                </div>
+
+                {/* 2. 协议与客户端 */}
+                <div className="grid md:grid-cols-2 gap-6 mb-8">
+                    <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+                        <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Icons.Cpu /> 常见协议 (Protocols)</h3>
+                        <ul className="space-y-4">
+                            <li className="bg-slate-700/50 p-3 rounded-lg">
+                                <div className="font-bold text-blue-300 text-sm">Shadowsocks (SS/SSR)</div>
+                                <div className="text-xs text-slate-400">轻量级，专为穿透设计，历史悠久但特征较明显，现在多配合插件使用。</div>
+                            </li>
+                            <li className="bg-slate-700/50 p-3 rounded-lg">
+                                <div className="font-bold text-purple-300 text-sm">VMess / VLESS (V2Ray)</div>
+                                <div className="text-xs text-slate-400">功能强大，支持伪装成正常的 HTTPS 流量 (Websocket + TLS)，是目前的主流抗干扰协议。</div>
+                            </li>
+                            <li className="bg-slate-700/50 p-3 rounded-lg">
+                                <div className="font-bold text-emerald-300 text-sm">Trojan</div>
+                                <div className="text-xs text-slate-400">原理是模仿 HTTPS 协议，将代理流量伪装成正常的网页浏览行为，难以被探测。</div>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+                        <h3 className="font-bold text-white mb-4 flex items-center gap-2"><Icons.Settings /> 客户端用法 (Clash Verge)</h3>
+                        <div className="space-y-4 text-sm text-slate-300">
+                            <div className="flex gap-3">
+                                <span className="bg-slate-700 h-6 w-6 flex items-center justify-center rounded-full text-xs font-bold shrink-0">1</span>
+                                <div>
+                                    <span className="font-bold text-white">导入订阅 (Import Profile)</span>
+                                    <p className="text-slate-400 text-xs mt-1">在设置中找到“订阅”或“配置”，粘贴服务商提供的 <code>.yaml</code> 链接。这是包含节点信息的关键。</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-3">
+                                <span className="bg-slate-700 h-6 w-6 flex items-center justify-center rounded-full text-xs font-bold shrink-0">2</span>
+                                <div>
+                                    <span className="font-bold text-white">选择模式 (Mode)</span>
+                                    <p className="text-slate-400 text-xs mt-1">
+                                        <span className="text-yellow-400">Rule (规则模式)</span>：国内直连，国外走代理（推荐）。<br/>
+                                        <span className="text-red-400">Global (全局模式)</span>：所有流量都走代理（仅调试用）。
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex gap-3">
+                                <span className="bg-slate-700 h-6 w-6 flex items-center justify-center rounded-full text-xs font-bold shrink-0">3</span>
+                                <div>
+                                    <span className="font-bold text-white">系统代理 (System Proxy)</span>
+                                    <p className="text-slate-400 text-xs mt-1">开启开关后，浏览器即可正常访问 GitHub。注意：命令行工具通常需要额外配置。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 3. TUN vs System Proxy */}
+                <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-2xl p-6 mb-8 mt-8">
+                    <h3 className="text-xl font-bold mb-6 text-white flex items-center gap-2">
+                        <Icons.Network /> 进阶：系统代理 vs TUN 模式
+                    </h3>
+                    <p className="text-slate-400 text-sm mb-6">
+                        很多新手遇到的问题：“明明开了梯子，为什么终端(Terminal)或游戏还是连不上？” <br/>
+                        这是因为它们默认不走<strong>系统代理</strong>。
+                    </p>
+                    
+                    <div className="grid md:grid-cols-2 gap-6">
+                        {/* System Proxy Card */}
+                        <div className="bg-slate-800/50 rounded-xl p-5 border border-blue-500/30 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition">
+                                <Icons.Globe size={64} />
+                            </div>
+                            <h4 className="font-bold text-blue-400 mb-2 flex items-center gap-2">系统代理 (System Proxy)</h4>
+                            <ul className="text-sm space-y-2 text-slate-300">
+                                <li className="flex gap-2"><span className="text-blue-500">•</span> <span><strong>原理：</strong> 修改操作系统的 HTTP/S 代理设置。</span></li>
+                                <li className="flex gap-2"><span className="text-blue-500">•</span> <span><strong>适用：</strong> 浏览器 (Chrome/Edge)、大多数标准桌面应用。</span></li>
+                                <li className="flex gap-2"><span className="text-red-400">•</span> <span><strong>缺点：</strong> 终端命令行、大型游戏、UWP 应用通常会<strong>无视</strong>此设置，直接直连导致失败。</span></li>
+                            </ul>
+                        </div>
+
+                        {/* TUN Mode Card */}
+                        <div className="bg-slate-800/50 rounded-xl p-5 border border-purple-500/30 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition">
+                                <Icons.Shield size={64} />
+                            </div>
+                            <h4 className="font-bold text-purple-400 mb-2 flex items-center gap-2">TUN 模式 (Tun Mode)</h4>
+                            <ul className="text-sm space-y-2 text-slate-300">
+                                <li className="flex gap-2"><span className="text-purple-500">•</span> <span><strong>原理：</strong> 创建虚拟网卡，接管 OSI 网络层的所有流量。</span></li>
+                                <li className="flex gap-2"><span className="text-purple-500">•</span> <span><strong>适用：</strong> <strong>所有软件</strong>。包括游戏、终端、虚拟机等。</span></li>
+                                <li className="flex gap-2"><span className="text-emerald-400">•</span> <span><strong>优势：</strong> 强制接管，解决“部分软件不走代理”的终极方案。需要管理员权限开启。</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 4. 警示 */}
+                <div className="bg-red-900/10 border border-red-500/20 rounded-2xl p-6">
+                    <h3 className="text-lg font-bold text-red-400 mb-3 flex items-center gap-2"><Icons.AlertTriangle /> 重要警示 (Safety First)</h3>
+                    <div className="grid md:grid-cols-2 gap-6 text-sm">
+                        <ul className="list-disc pl-5 space-y-2 text-slate-300">
+                            <li><strong className="text-red-300">政治红线：</strong>严禁用于发表、浏览反动言论或从事非法活动。技术仅限用于学术研究、查阅技术资料。</li>
+                            <li><strong className="text-red-300">免费陷阱：</strong>避免使用宣称“永久免费”的 VPN。服务器需要高昂成本，免费往往意味着他们在出售你的浏览隐私。</li>
+                        </ul>
+                        <ul className="list-disc pl-5 space-y-2 text-slate-300">
+                            <li><strong className="text-red-300">全局代理风险：</strong>开启全局代理时，不要登录国内银行、支付宝等敏感应用，以免触发风控冻结账号。</li>
+                            <li><strong className="text-red-300">隐私保护：</strong>不要在不可信的节点环境下输入密码或信用卡信息。尽量访问 HTTPS 网站。</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const GithubGuidePage = () => (
+            <div className="fade-in max-w-4xl mx-auto">
+                <SectionHeader number="5.3" title="GitHub：开源世界的大门" subtitle="不要把它只当成代码网盘，它是全球最大的程序员社交网络。" />
+
+                <div className="grid lg:grid-cols-2 gap-8 items-start">
+                    <div className="space-y-6">
+                        <div className="p-6 bg-slate-800 rounded-xl border border-slate-700">
+                            <h3 className="font-bold text-lg mb-4 text-white">基础词汇表</h3>
+                            <ul className="space-y-3 text-sm">
+                                <li className="flex items-center gap-3">
+                                    <span className="bg-slate-700 text-slate-300 px-2 py-1 rounded text-xs font-mono">Repository</span>
+                                    <span className="text-slate-400">仓库。项目的存放地。</span>
+                                </li>
+                                <li className="flex items-center gap-3">
+                                    <span className="bg-yellow-500/20 text-yellow-500 px-2 py-1 rounded text-xs font-mono">Star</span>
+                                    <span className="text-slate-400">收藏/点赞。衡量热度。</span>
+                                </li>
+                                <li className="flex items-center gap-3">
+                                    <span className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs font-mono">Fork</span>
+                                    <span className="text-slate-400">复刻。复制项目到自己账号。</span>
+                                </li>
+                                <li className="flex items-center gap-3">
+                                    <span className="bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs font-mono">Issue</span>
+                                    <span className="text-slate-400">议题。提问与建议。</span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div className="p-6 bg-slate-800 rounded-xl border border-slate-700">
+                            <h3 className="font-bold text-lg mb-4 text-white">如何下载代码？</h3>
+                            <div className="space-y-4">
+                                <button className="w-full text-left p-3 rounded bg-slate-700 hover:bg-slate-600 transition flex items-center justify-between group">
+                                    <span className="text-sm font-mono text-slate-200">Download ZIP</span>
+                                    <span className="text-xs text-slate-400 group-hover:text-white">新手推荐 &rarr;</span>
+                                </button>
+                                <button className="w-full text-left p-3 rounded bg-slate-700 hover:bg-slate-600 transition flex items-center justify-between group">
+                                    <span className="text-sm font-mono text-slate-200">GitHub Desktop</span>
+                                    <span className="text-xs text-slate-400 group-hover:text-white">图形化神器 &rarr;</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-black rounded-xl overflow-hidden shadow-2xl border border-slate-700/50 font-mono text-sm h-full">
+                        <div className="bg-slate-900 px-4 py-2 flex items-center gap-2 border-b border-slate-800">
+                            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                            <span className="ml-2 text-slate-500 text-xs">Search Tricks</span>
+                        </div>
+                        <div className="p-6 space-y-6">
+                            <div>
+                                <p className="text-slate-400 mb-2"># 1. 寻找高质量 Python 项目</p>
+                                <div className="bg-slate-800 p-3 rounded border border-slate-700 text-blue-300">
+                                    machine learning stars:>1000 language:python
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-slate-400 mb-2"># 2. 寻找精选资源列表</p>
+                                <div className="bg-slate-800 p-3 rounded border border-slate-700 text-blue-300">
+                                    awesome javascript
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-slate-400 mb-2"># 3. 按更新时间排序</p>
+                                <div className="bg-slate-800 p-3 rounded border border-slate-700 text-blue-300">
+                                    pushed:>2023-01-01
+                                </div>
+                            </div>
+                            <div className="pt-4 border-t border-slate-800 text-slate-500 italic">
+                                > 善用高级搜索，能帮你避开大量学生作业项目。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const ResourcesPage = () => (
+            <div className="fade-in max-w-4xl mx-auto">
+                <SectionHeader number="5.4" title="自学者的灯塔" subtitle="大学课程可能滞后，自学能力决定了你的上限。" />
+                
+                <div className="grid md:grid-cols-2 gap-6 mb-6">
+                    <a href="https://csdiy.wiki/" target="_blank" className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 p-8 shadow-xl transition-transform hover:-translate-y-1">
+                        <div className="relative z-10">
+                            <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">CS-DIY <Icons.ExternalLink size={20} /></h3>
+                            <p className="text-indigo-100 mb-4">神级资源。由北大、清华学长整理的计算机自学指南。</p>
+                            <ul className="text-sm text-indigo-200 list-disc pl-4 space-y-1">
+                                <li>顶级公开课 (CMU, MIT)</li>
+                                <li>完全免费</li>
+                                <li>推荐路径：CS61A -> CS61B</li>
+                            </ul>
+                        </div>
+                        <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+                    </a>
+                    <a href="https://roadmap.sh/" target="_blank" className="group relative overflow-hidden rounded-2xl bg-slate-800 border border-slate-700 p-8 shadow-xl transition-transform hover:-translate-y-1">
+                        <div className="relative z-10">
+                            <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-2">Roadmap.sh <Icons.ExternalLink size={20} /></h3>
+                            <p className="text-slate-400 mb-4">可视化的开发者技能树。</p>
+                            <ul className="text-sm text-slate-400 list-disc pl-4 space-y-1">
+                                <li>前端/后端/DevOps 路线图</li>
+                                <li>清晰的节点路径</li>
+                                <li>点击节点查看教程</li>
+                            </ul>
+                        </div>
+                    </a>
+                </div>
+
+                <div className="p-6 bg-slate-800/50 rounded-xl border border-slate-700 flex flex-col md:flex-row gap-6 items-start">
+                    <div className="flex-1">
+                        <h4 className="font-bold text-white mb-2"><span className="text-orange-500">Stack Overflow</span> 报错求助法则</h4>
+                        <p className="text-sm text-slate-400">复制报错代码最后一行 -> 粘贴到 Google -> 查看高票回答。别只会在群里发截图。</p>
+                    </div>
+                    <div className="flex-1">
+                        <h4 className="font-bold text-white mb-2"><span className="text-pink-500">B站/YouTube</span> 避坑指南</h4>
+                        <p className="text-sm text-slate-400"><span className="text-red-400">避开：</span>标题党“3天精通Java”。<br/><span className="text-emerald-400">寻找：</span>实战派UP主。</p>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const PracticePage = ({ checkedTasks, toggleTask, taskProgress }) => (
+            <div className="fade-in max-w-3xl mx-auto">
+                <SectionHeader number="5.5" title="实践任务" subtitle="纸上得来终觉浅，绝知此事要躬行。" />
+                
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
+                    <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-xl font-bold text-white">本章通关清单</h3>
+                        <span className="font-mono text-blue-500">{taskProgress.toFixed(0)}% COMPLETED</span>
+                    </div>
+                    
+                    <div className="w-full bg-slate-800 h-2 rounded-full mb-8 overflow-hidden">
+                        <div className="bg-blue-500 h-full transition-all duration-500 ease-out" style={{ width: `${taskProgress}%` }}></div>
+                    </div>
+
+                    <div className="space-y-4">
+                        {[
+                            { id: 1, title: "清理行动", desc: "卸载 360/电脑管家，安装 PC Manager (Win) 并清理一次垃圾。" },
+                            { id: 2, title: "工具配置", desc: "安装 Snipaste，并成功尝试使用一次 F1 (截图) 和 F3 (贴图) 功能。" },
+                            { id: 3, title: "GitHub 初体验", desc: "注册 GitHub 账号，搜索 `CS-DIY` 仓库，并点击 Star 收藏。" },
+                            { id: 4, title: "环境测试", desc: "下载 Watt Toolkit (Steam++)，尝试加速 GitHub 并成功访问。" }
+                        ].map(task => (
+                            <label key={task.id} className="flex items-start gap-4 p-4 rounded-xl bg-slate-800/50 cursor-pointer hover:bg-slate-800 transition group select-none">
+                                <div className={`mt-1 w-6 h-6 rounded border flex items-center justify-center transition-colors ${checkedTasks[task.id] ? 'bg-blue-500 border-blue-500' : 'border-slate-600 group-hover:border-blue-400'}`}>
+                                    {checkedTasks[task.id] && <Icons.CheckSquare className="text-white w-4 h-4" />}
+                                </div>
+                                <input type="checkbox" className="hidden" onChange={() => toggleTask(task.id)} checked={!!checkedTasks[task.id]} />
+                                <div>
+                                    <div className={`font-medium mb-1 transition ${checkedTasks[task.id] ? 'text-slate-500 line-through' : 'text-slate-200'}`}>{task.title}</div>
+                                    <div className="text-sm text-slate-400">{task.desc}</div>
+                                </div>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+
+        // --- Main App ---
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('intro');
+            const [checkedTasks, setCheckedTasks] = useState({});
+
+            const toggleTask = (id) => {
+                setCheckedTasks(prev => ({ ...prev, [id]: !prev[id] }));
+            };
+
+            const taskProgress = () => {
+                const total = 4;
+                const completed = Object.values(checkedTasks).filter(Boolean).length;
+                return (completed / total) * 100;
+            };
+
+            const navItems = [
+                { id: 'intro', label: '首页', icon: <Icons.Home size={18} /> },
+                { id: '5.1', label: '5.1 系统净化', icon: <Icons.Shield size={18} /> },
+                { id: '5.2', label: '5.2 冲浪指南', icon: <Icons.Globe size={18} /> },
+                { id: '5.X', label: '5.X 网络原理', icon: <Icons.Activity size={18} /> },
+                { id: '5.3', label: '5.3 GitHub', icon: <span className="font-mono font-bold text-xs">Git</span> },
+                { id: '5.4', label: '5.4 自学资源', icon: <Icons.ExternalLink size={18} /> },
+                { id: '5.5', label: '5.5 实践', icon: <Icons.CheckSquare size={18} /> },
+            ];
+
+            const renderContent = () => {
+                switch(activeTab) {
+                    case 'intro': return <IntroPage setTab={setActiveTab} />;
+                    case '5.1': return <SystemCleanupPage />;
+                    case '5.2': return <BrowsingGuidePage />;
+                    case '5.X': return <NetworkGuidePage />;
+                    case '5.3': return <GithubGuidePage />;
+                    case '5.4': return <ResourcesPage />;
+                    case '5.5': return <PracticePage checkedTasks={checkedTasks} toggleTask={toggleTask} taskProgress={taskProgress()} />;
+                    default: return <IntroPage setTab={setActiveTab} />;
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-[#0f172a] text-slate-200 font-sans">
+                    {/* Navigation Bar */}
+                    <nav className="fixed top-0 w-full z-50 glass-panel bg-[#0f172a]/80 backdrop-blur-md border-b border-slate-800">
+                        <div className="max-w-7xl mx-auto px-4">
+                            <div className="flex items-center justify-between h-16">
+                                {/* Logo (Left) */}
+                                <div className="flex-shrink-0 flex items-center gap-2 mr-6 cursor-pointer" onClick={() => setActiveTab('intro')}>
+                                    <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                                    <span className="font-mono font-bold text-lg tracking-tight text-slate-100">CS_BOOTCAMP<span className="text-slate-500">_CH05</span></span>
+                                </div>
+
+                                {/* Desktop Nav (Center/Right) */}
+                                <div className="hidden md:flex flex-1 items-center justify-end space-x-1 overflow-x-auto">
+                                    {navItems.map(item => (
+                                        <button
+                                            key={item.id}
+                                            onClick={() => setActiveTab(item.id)}
+                                            className={`nav-item flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                                                activeTab === item.id ? 'active' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+                                            }`}
+                                        >
+                                            {item.icon}
+                                            <span>{item.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Mobile Scrollable Nav */}
+                                <div className="md:hidden flex flex-1 items-center overflow-x-auto no-scrollbar mask-image-linear-gradient">
+                                    <div className="flex space-x-2 pr-4">
+                                        {navItems.map(item => (
+                                            <button
+                                                key={item.id}
+                                                onClick={() => setActiveTab(item.id)}
+                                                className={`whitespace-nowrap px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
+                                                    activeTab === item.id 
+                                                    ? 'bg-blue-500/10 border-blue-500 text-blue-400' 
+                                                    : 'border-slate-700 text-slate-400 bg-slate-800'
+                                                }`}
+                                            >
+                                                {item.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </nav>
+
+                    {/* Main Content Area */}
+                    <main className="pt-24 pb-20 px-4 md:px-6 max-w-7xl mx-auto min-h-[calc(100vh-64px)] flex flex-col justify-start">
+                        {renderContent()}
+                    </main>
+
+                    {/* Footer */}
+                    <footer className="border-t border-slate-800 py-8 text-center text-slate-500 text-xs">
+                        <p>CS入门教程系列 © 2025</p>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

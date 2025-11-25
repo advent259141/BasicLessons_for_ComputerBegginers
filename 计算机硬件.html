@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>计算机体系结构可视化 - Pro Tech View</title>
+    
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 引入 React 和 ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- 引入 Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0f19; /* Deep Dark Blue */
+            color: #e2e8f0;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .font-retro {
+            font-family: 'VT323', monospace;
+        }
+        
+        /* 网格背景 */
+        .bg-grid {
+            background-size: 40px 40px;
+            background-image: linear-gradient(to right, rgba(30, 41, 59, 0.5) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(30, 41, 59, 0.5) 1px, transparent 1px);
+        }
+
+        /* 动画关键帧 */
+        @keyframes data-flow-storage-ram {
+            0% { left: 10%; opacity: 1; transform: scale(1); }
+            45% { left: 45%; opacity: 1; transform: scale(1); }
+            50% { left: 45%; opacity: 0; transform: scale(0.5); }
+            100% { left: 45%; opacity: 0; }
+        }
+
+        @keyframes data-flow-ram-vram {
+            0% { left: 45%; opacity: 0; }
+            5% { left: 45%; opacity: 1; transform: scale(1); }
+            50% { left: 80%; opacity: 1; transform: scale(1); }
+            55% { left: 80%; opacity: 0; transform: scale(0.5); }
+            100% { left: 80%; opacity: 0; }
+        }
+
+        /* 流水线动画: 从左滑到右 */
+        @keyframes pipeline-slide {
+            0% { transform: translateX(-50px); opacity: 0; }
+            10% { opacity: 1; }
+            40% { background-color: rgba(255,255,255,0.1); } /* Entering Core */
+            50% { transform: translateX(180px) scale(1.2); filter: brightness(1.5); } /* In Core (Processing) */
+            60% { background-color: currentColor; } /* Exiting Core */
+            90% { opacity: 1; }
+            100% { transform: translateX(400px); opacity: 0; }
+        }
+
+        /* 启动流程粒子动画 */
+        @keyframes boot-particle-0 { /* PSU -> CPU */
+            0% { cx: 16%; opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { cx: 50%; opacity: 0; }
+        }
+        @keyframes boot-particle-2 { /* CPU -> Storage */
+            0% { cx: 50%; opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { cx: 83%; opacity: 0; }
+        }
+        @keyframes boot-particle-3 { /* Storage -> CPU */
+            0% { cx: 83%; opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { cx: 50%; opacity: 0; }
+        }
+        @keyframes boot-particle-4 { /* CPU -> UI */
+            0% { cy: 30%; opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { cy: 70%; opacity: 0; }
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        
+        /* BIOS 特有样式 */
+        .bios-scanline {
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+            background-size: 100% 4px;
+        }
+
+        /* 核心呼吸灯 */
+        @keyframes pulse-core {
+            0%, 100% { box-shadow: 0 0 10px currentColor; opacity: 0.8; }
+            50% { box-shadow: 0 0 20px currentColor; opacity: 1; }
+        }
+        
+        /* 信号流动画线 */
+        .signal-line {
+            stroke-dasharray: 10;
+            animation: dash 1s linear infinite;
+        }
+        @keyframes dash {
+            to { stroke-dashoffset: -20; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // -----------------------------------------------------------------------------
+        // 1. 专业硬件数据
+        // -----------------------------------------------------------------------------
+        const HARDWARE_DATA = [
+            {
+                id: 'cpu',
+                name: 'CPU (Central Processing Unit)',
+                cnName: '中央处理器',
+                icon: (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-full h-full text-blue-400">
+                        <rect x="4" y="4" width="16" height="16" rx="2" />
+                        <rect x="9" y="9" width="6" height="6" />
+                        <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3" />
+                    </svg>
+                ),
+                spec: 'IPC / Clock Speed / Cores',
+                definition: '计算机系统的运算控制核心。负责读取指令、解码、执行以及写回数据。基于冯·诺依曼架构，主要由运算器（ALU）和控制器（CU）组成。',
+                principle: '采用串行处理架构，擅长复杂的逻辑分支预测、任务调度和通用计算。现代CPU通过乱序执行（Out-of-Order Execution）和超线程技术提升指令吞吐量。'
+            },
+            {
+                id: 'gpu',
+                name: 'GPU (Graphics Processing Unit)',
+                cnName: '图形处理器',
+                icon: (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-full h-full text-purple-400">
+                        <path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6z" />
+                        <path d="M8 12h8m-4-4v8" strokeOpacity="0.5" />
+                        <circle cx="12" cy="12" r="3" />
+                    </svg>
+                ),
+                spec: 'CUDA Cores / TFLOPS / VRAM',
+                definition: '最初设计用于加速图形渲染的协处理器，现演变为通用并行计算平台（GPGPU）。核心结构包含数千个流处理器。',
+                principle: 'SIMD（单指令多数据流）架构。牺牲了复杂的逻辑控制能力，换取了海量的并行浮点运算能力。极度适合处理矩阵乘法（图形渲染、深度学习训练）。'
+            },
+            {
+                id: 'ram',
+                name: 'RAM (Random Access Memory)',
+                cnName: '随机存取存储器',
+                icon: (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-full h-full text-green-400">
+                        <path d="M2 12h20M6 12v-6M10 12v-6M14 12v-6M18 12v-6" />
+                        <rect x="2" y="12" width="20" height="6" rx="1" />
+                    </svg>
+                ),
+                spec: 'Frequency (MT/s) / CAS Latency',
+                definition: 'CPU直接寻址的主存储器。具有极高的读写速度，用于存放当前正在运行的操作系统、应用程序及其数据。',
+                principle: '易失性存储（Volatile Memory），断电后电容器电荷流失，数据即刻丢失。作为慢速硬盘和高速CPU之间的缓冲桥梁。'
+            },
+            {
+                id: 'storage',
+                name: 'Storage (SSD/NVMe)',
+                cnName: '非易失性存储',
+                icon: (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-full h-full text-yellow-400">
+                        <rect x="4" y="4" width="16" height="16" rx="2" />
+                        <path d="M8 20v-4h8v4" />
+                        <path d="M12 10v2" />
+                    </svg>
+                ),
+                spec: 'Sequential R/W / IOPS',
+                definition: '负责数据的持久化保存。现代电脑主要使用基于NAND Flash闪存颗粒的固态硬盘（SSD）。',
+                principle: '通过电子俘获在浮栅晶体管中存储二进制状态。断电后数据依然保留。相比RAM，其延迟高几个数量级，但容量大且成本低。'
+            },
+            {
+                id: 'motherboard',
+                name: 'Motherboard (PCB)',
+                cnName: '主板/印刷电路板',
+                icon: (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-full h-full text-slate-400">
+                        <rect x="2" y="2" width="20" height="20" rx="2" />
+                        <path d="M6 6h4v4H6zM14 6h4v4h-4zM6 14h4v4H6z" strokeOpacity="0.5" />
+                        <path d="M10 8h4M8 10v4M14 14h-4" />
+                    </svg>
+                ),
+                spec: 'Chipset / VRM / PCIe Lanes',
+                definition: '计算机的物理骨架和电路枢纽。承载南桥/北桥芯片组（现代架构中北桥多集成于CPU）。',
+                principle: '提供PCIe总线、DDR总线、SATA/M.2接口，确保各硬件间的高速信号互联与供电（VRM模块负责CPU电压调节）。'
+            }
+        ];
+
+        // -----------------------------------------------------------------------------
+        // 2. 组件：数据流动画 (汉化版)
+        // -----------------------------------------------------------------------------
+        const DataFlowAnimation = () => {
+            const [animating, setAnimating] = useState(false);
+            const [stage, setStage] = useState(0); 
+
+            const startSimulation = () => {
+                if (animating) return;
+                setAnimating(true);
+                setStage(1);
+
+                setTimeout(() => setStage(2), 2000);
+                setTimeout(() => setStage(3), 4000);
+                setTimeout(() => {
+                    setAnimating(false);
+                    setStage(0);
+                }, 6000);
+            };
+
+            return (
+                <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700/50 relative overflow-hidden">
+                    <div className="flex justify-between items-center mb-8 border-b border-slate-700 pb-4">
+                        <div>
+                            <h3 className="text-xl font-bold text-cyan-400 font-mono flex items-center gap-2">
+                                <span className="w-2 h-6 bg-cyan-500 block"></span>
+                                I/O 流水线：游戏场景加载
+                            </h3>
+                            <p className="text-xs text-slate-500 mt-1 font-mono">SCENARIO: LOADING "Cyberpunk_Level_01"</p>
+                        </div>
+                        <button 
+                            onClick={startSimulation}
+                            disabled={animating}
+                            className={`px-4 py-2 font-mono text-sm font-bold rounded transition-all flex items-center gap-2 ${
+                                animating ? 'bg-slate-700 text-slate-500' : 'bg-green-600 hover:bg-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.5)]'
+                            }`}
+                        >
+                            {animating ? 'LOADING...' : '▶ 开始加载 (START GAME)'}
+                        </button>
+                    </div>
+
+                    <div className="relative h-48 flex items-center justify-between px-4 md:px-16 gap-4">
+                        <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-800 -translate-y-1/2 z-0"></div>
+                        
+                        <div className="relative z-10 w-24 h-32 bg-slate-800 border-2 border-slate-600 rounded flex flex-col items-center justify-center gap-2">
+                            <div className="text-2xl">💾</div>
+                            <div className="text-xs font-mono font-bold text-slate-400">SSD (硬盘)</div>
+                            <div className="text-[10px] text-slate-500">Asset Pack</div>
+                            <div className="absolute -bottom-8 text-[10px] text-slate-500 font-mono whitespace-nowrap">带宽: ~7 GB/s</div>
+                        </div>
+
+                        <div className="relative z-10 w-24 h-32 bg-slate-800 border-2 border-green-900/50 rounded flex flex-col items-center justify-center gap-2">
+                            <div className="text-2xl">⚡</div>
+                            <div className="text-xs font-mono font-bold text-green-400">RAM (内存)</div>
+                            <div className="text-[10px] text-slate-500">Unpacking</div>
+                            <div className="absolute -bottom-8 text-[10px] text-green-500/50 font-mono whitespace-nowrap">带宽: ~60 GB/s</div>
+                        </div>
+
+                        <div className={`relative z-10 w-24 h-32 bg-slate-800 border-2 transition-colors duration-300 rounded flex flex-col items-center justify-center gap-2 ${stage === 3 ? 'border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.3)]' : 'border-purple-900/50'}`}>
+                            <div className={`text-2xl transition-all duration-300 ${stage === 3 ? 'scale-125' : ''}`}>🎨</div>
+                            <div className="text-xs font-mono font-bold text-purple-400">VRAM (显存)</div>
+                            <div className="text-[10px] text-slate-500">Textures</div>
+                            <div className="absolute -bottom-8 text-[10px] text-purple-500/50 font-mono whitespace-nowrap">带宽: ~1000 GB/s</div>
+                        </div>
+
+                        {stage === 1 && (
+                            <div className="absolute z-20 top-1/2 -translate-y-1/2 w-16 h-12 bg-yellow-500/20 border border-yellow-400 rounded flex items-center justify-center backdrop-blur-sm"
+                                 style={{ animation: 'data-flow-storage-ram 2s linear forwards', left: '10%' }}>
+                                <span className="text-[10px] font-mono text-yellow-300 font-bold">GAME.PAK</span>
+                            </div>
+                        )}
+                        {stage === 2 && (
+                            <div className="absolute z-20 top-1/2 -translate-y-1/2 w-16 h-12 bg-green-500/20 border border-green-400 rounded flex items-center justify-center backdrop-blur-sm"
+                                 style={{ animation: 'data-flow-ram-vram 2s linear forwards', left: '45%' }}>
+                                <span className="text-[10px] font-mono text-green-300 font-bold">TEXTURES</span>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="mt-8 bg-black/40 p-3 rounded font-mono text-xs h-24 overflow-y-auto border border-slate-800">
+                        <div className="text-slate-500">// Game Engine Log (游戏引擎日志)</div>
+                        {stage >= 1 && <div className="text-yellow-400">> [IO] 正在从 SSD 读取地图包 "Level_01.pak" ... (读取速度: 5.5GB/s)</div>}
+                        {stage >= 2 && <div className="text-green-400">> [CPU] 地图包已在内存中解压。正在通过 PCIe 将纹理上传至显卡...</div>}
+                        {stage >= 3 && <div className="text-purple-400">> [GPU] 4K 贴图加载完毕。着色器编译完成。开始渲染画面。</div>}
+                        {stage === 0 && !animating && <div className="text-slate-500">> Ready to load. 准备就绪，等待玩家点击开始。</div>}
+                    </div>
+                </div>
+            );
+        };
+
+        // -----------------------------------------------------------------------------
+        // 3. 组件：计算模拟实验室 (Pipeline Edition)
+        // -----------------------------------------------------------------------------
+        const ComputeSimulation = () => {
+            const [isRunning, setIsRunning] = useState(false);
+            const [cpuPackets, setCpuPackets] = useState([]);
+            const [gpuPackets, setGpuPackets] = useState([]);
+
+            const stopRef = useRef(false);
+
+            const startPipeline = () => {
+                if (isRunning) {
+                    stopRef.current = true;
+                    setIsRunning(false);
+                    return;
+                }
+                
+                setIsRunning(true);
+                stopRef.current = false;
+
+                // CPU Pipeline Logic
+                const cpuInterval = setInterval(() => {
+                    if (stopRef.current) { clearInterval(cpuInterval); return; }
+                    const id = Date.now();
+                    setCpuPackets(prev => [...prev, id]);
+                    setTimeout(() => {
+                        setCpuPackets(prev => prev.filter(pid => pid !== id));
+                    }, 2000); 
+                }, 300);
+
+                // GPU Pipeline Logic
+                const gpuInterval = setInterval(() => {
+                    if (stopRef.current) { clearInterval(gpuInterval); return; }
+                    const id = Date.now();
+                    setGpuPackets(prev => [...prev, id]);
+                    setTimeout(() => {
+                        setGpuPackets(prev => prev.filter(pid => pid !== id));
+                    }, 3000);
+                }, 1500);
+            };
+
+            return (
+                <div className="bg-slate-900/80 rounded-xl p-6 border border-slate-700/50 mb-12">
+                     <div className="flex justify-between items-center mb-8 border-b border-slate-700 pb-4">
+                        <div>
+                            <h3 className="text-xl font-bold text-white font-mono flex items-center gap-2">
+                                <span className="w-2 h-6 bg-gradient-to-b from-blue-500 to-purple-500 block"></span>
+                                流水线架构模拟 (Pipeline Architecture)
+                            </h3>
+                            <p className="text-xs text-slate-400 mt-1 font-mono">CPU(1 Lane High Speed) vs GPU(Many Lanes Low Speed)</p>
+                        </div>
+                        <button 
+                            onClick={startPipeline}
+                            className={`px-4 py-2 font-mono text-sm font-bold rounded transition-all flex items-center gap-2 ${
+                                isRunning ? 'bg-red-900/50 text-red-400 border border-red-500 hover:bg-red-900' : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]'
+                            }`}
+                        >
+                            {isRunning ? '⏹ 停止模拟 (STOP)' : '▶ 启动流水线 (START PIPELINE)'}
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* CPU Pipeline */}
+                        <div className="bg-slate-950 p-6 rounded-lg border border-blue-900/30 relative overflow-hidden h-64 flex flex-col justify-center">
+                            <div className="absolute top-2 left-4 text-xs font-bold text-blue-400 flex items-center gap-2">
+                                <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                                CPU: 单指令流 (Single Pipeline)
+                            </div>
+                            
+                            <div className="w-full h-12 bg-slate-900 border-y border-slate-800 relative flex items-center">
+                                <div className="absolute left-1/2 -translate-x-1/2 w-16 h-16 bg-blue-900/20 border-2 border-blue-500/50 rounded flex items-center justify-center z-10 backdrop-blur-sm" style={{animation: isRunning ? 'pulse-core 0.5s infinite' : 'none', color: '#60a5fa'}}>
+                                    <span className="font-mono text-[10px] font-bold">CORE 0</span>
+                                </div>
+                                {cpuPackets.map(id => (
+                                    <div 
+                                        key={id}
+                                        className="absolute w-6 h-6 bg-blue-500 shadow-[0_0_10px_#3b82f6] rounded-sm top-3"
+                                        style={{ animation: 'pipeline-slide 2s linear forwards', color: '#3b82f6' }}
+                                    ></div>
+                                ))}
+                            </div>
+                            <div className="mt-8 text-center text-xs text-slate-500 font-mono">
+                                特点：高主频，延迟低，一次处理一个复杂任务。
+                            </div>
+                        </div>
+
+                        {/* GPU Pipeline */}
+                        <div className="bg-slate-950 p-6 rounded-lg border border-purple-900/30 relative overflow-hidden h-64 flex flex-col justify-center gap-2">
+                            <div className="absolute top-2 left-4 text-xs font-bold text-purple-400 flex items-center gap-2">
+                                <span className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></span>
+                                GPU: 多指令流 (Parallel Pipelines)
+                            </div>
+
+                            <div className="relative">
+                                <div className="absolute left-1/2 -translate-x-1/2 top-[-10px] w-16 h-[160px] bg-purple-900/20 border-2 border-purple-500/50 rounded flex flex-col items-center justify-evenly z-10 backdrop-blur-sm" style={{animation: isRunning ? 'pulse-core 1.5s infinite' : 'none', color: '#a855f7'}}>
+                                    {Array(8).fill(0).map((_, i) => (
+                                        <div key={i} className="w-full h-[1px] bg-purple-500/30"></div>
+                                    ))}
+                                    <span className="absolute -bottom-6 font-mono text-[10px] font-bold text-purple-400">CORES xN</span>
+                                </div>
+                                {gpuPackets.map(batchId => (
+                                    <div key={batchId} className="absolute top-0 left-0 w-full h-full pointer-events-none">
+                                        {Array(8).fill(0).map((_, idx) => (
+                                            <div 
+                                                key={idx}
+                                                className="absolute w-4 h-4 bg-purple-500 shadow-[0_0_5px_#a855f7] rounded-sm"
+                                                style={{ 
+                                                    top: `${idx * 18}px`,
+                                                    animation: 'pipeline-slide 3s linear forwards',
+                                                    color: '#a855f7'
+                                                }}
+                                            ></div>
+                                        ))}
+                                    </div>
+                                ))}
+                                <div className="h-[140px]"></div>
+                            </div>
+                             <div className="mt-2 text-center text-xs text-slate-500 font-mono">
+                                特点：低主频，吞吐量大，一次处理一批简单任务。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // -----------------------------------------------------------------------------
+        // 4. 组件：CPU 任务切换模拟器
+        // -----------------------------------------------------------------------------
+        const CpuTaskSwitchingDemo = () => {
+            const [tasks, setTasks] = useState([
+                { id: 1, name: 'Chrome.exe', color: 'bg-blue-500', progress: 30, state: 'waiting' },
+                { id: 2, name: 'Spotify.exe', color: 'bg-green-500', progress: 60, state: 'waiting' },
+                { id: 3, name: 'Code.exe', color: 'bg-yellow-500', progress: 10, state: 'waiting' }
+            ]);
+            const [activeTaskId, setActiveTaskId] = useState(null);
+            const [systemState, setSystemState] = useState('IDLE'); 
+            
+            useEffect(() => {
+                let interval;
+                const schedule = async () => {
+                    const taskIds = [1, 2, 3];
+                    let currentIndex = 0;
+
+                    interval = setInterval(() => {
+                        setSystemState('SWITCHING');
+                        setActiveTaskId(null);
+
+                        setTimeout(() => {
+                            const currentId = taskIds[currentIndex];
+                            setActiveTaskId(currentId);
+                            setSystemState('RUNNING');
+                            setTasks(prev => prev.map(t => 
+                                t.id === currentId 
+                                ? { ...t, state: 'running', progress: (t.progress + 10) % 100 } 
+                                : { ...t, state: 'waiting' }
+                            ));
+                            currentIndex = (currentIndex + 1) % taskIds.length;
+                        }, 800); 
+                    }, 2500);
+                };
+                schedule();
+                return () => clearInterval(interval);
+            }, []);
+
+            return (
+                <div className="bg-slate-900/80 rounded-xl p-6 border border-slate-700/50">
+                    <div className="mb-6">
+                        <h3 className="text-xl font-bold text-white font-mono flex items-center gap-2">
+                            <span className="w-2 h-6 bg-pink-500 block"></span>
+                            多任务调度模拟 (Task Scheduling)
+                        </h3>
+                        <p className="text-xs text-slate-400 mt-1 font-mono">Understanding Time Slicing & Context Switching</p>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row gap-8 items-center justify-center">
+                        <div className="space-y-4 w-full md:w-1/3">
+                            <h4 className="text-sm font-bold text-slate-400 mb-2 border-b border-slate-700 pb-1">Process Queue</h4>
+                            {tasks.map(task => (
+                                <div key={task.id} className={`p-3 rounded-lg border transition-all duration-300 ${activeTaskId === task.id ? 'bg-slate-800 border-white scale-105 shadow-lg' : 'bg-slate-900 border-slate-700 opacity-60'}`}>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-3 h-3 rounded-full ${task.color}`}></div>
+                                            <span className="font-mono text-sm font-bold">{task.name}</span>
+                                        </div>
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${activeTaskId === task.id ? 'bg-green-900 text-green-300' : 'bg-slate-800 text-slate-500'}`}>
+                                            {activeTaskId === task.id ? 'RUNNING' : 'WAITING'}
+                                        </span>
+                                    </div>
+                                    <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                                        <div className={`h-full ${task.color} transition-all duration-500`} style={{ width: `${task.progress}%` }}></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="relative w-48 h-48 flex items-center justify-center">
+                            <div className="absolute inset-0 border-2 border-dashed border-slate-700 rounded-full animate-[spin_10s_linear_infinite]"></div>
+                            <div className={`relative z-10 w-32 h-32 bg-slate-800 border-4 rounded-2xl flex flex-col items-center justify-center transition-colors duration-300 ${systemState === 'SWITCHING' ? 'border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)]' : systemState === 'RUNNING' ? 'border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.4)]' : 'border-slate-600'}`}>
+                                <div className="text-4xl mb-1">⚙️</div>
+                                <div className="font-mono font-bold text-sm text-white">CORE #1</div>
+                                <div className={`text-[10px] font-mono mt-1 ${systemState === 'SWITCHING' ? 'text-red-400 animate-pulse' : 'text-green-400'}`}>
+                                    {systemState === 'SWITCHING' ? 'CONTEXT SWITCH' : 'EXECUTING'}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="w-full md:w-1/3 bg-slate-950 p-4 rounded-lg border border-slate-800 text-xs text-slate-400 font-mono h-48 overflow-y-auto">
+                            <div className="mb-2 text-slate-500">// OS Scheduler Log</div>
+                            <div className="space-y-2">
+                                {systemState === 'SWITCHING' && (
+                                    <div className="text-red-400 animate-[fadeIn_0.2s]">
+                                        > [INTERRUPT] 时间片用完 (Time Slice Limit)<br/>
+                                        > [KERNEL] 保存当前线程状态 (Registers, PC)<br/>
+                                        > [KERNEL] 切换内存页表 (Page Table)...
+                                    </div>
+                                )}
+                                {systemState === 'RUNNING' && activeTaskId && (
+                                    <div className="text-green-400 animate-[fadeIn_0.2s]">
+                                        > [RESUME] 恢复 {tasks.find(t => t.id === activeTaskId).name}<br/>
+                                        > [CPU] 执行指令流...<br/>
+                                        > [CPU] 算术逻辑单元 (ALU) 忙碌
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t border-slate-700 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                         <div className="bg-slate-900 p-3 rounded">
+                            <h5 className="font-bold text-white mb-1">什么是时间片 (Time Slice)?</h5>
+                            <p className="text-slate-400 text-xs">CPU 速度极快。操作系统把 1 秒钟切成几十份，每份分给一个软件。因为切换速度太快（毫秒级），人类感觉所有软件是“同时”在运行。</p>
+                        </div>
+                        <div className="bg-slate-900 p-3 rounded">
+                            <h5 className="font-bold text-white mb-1">什么是上下文切换?</h5>
+                            <p className="text-slate-400 text-xs">就像你写作业被叫去倒垃圾，回来要先回想“我刚才写到哪了”。CPU 切换任务也需要保存现场（寄存器状态），这会有微小的性能损耗。</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // -----------------------------------------------------------------------------
+        // 5. 组件：Boot 流程可视化 (Enhanced with Auto-Play & Animation)
+        // -----------------------------------------------------------------------------
+        const BootProcessVisualizer = () => {
+            const [step, setStep] = useState(0);
+            const [isPlaying, setIsPlaying] = useState(false);
+            
+            // 启动流程数据
+            const bootSteps = [
+                { id: 0, title: "POWER ON", sub: "供电阶段", desc: "按下电源键。电源供应器 (PSU) 开始工作，电压稳定后发送 'Power Good' 信号给主板。", hw: "PSU -> Motherboard" },
+                { id: 1, title: "RESET & POST", sub: "固件阶段", desc: "CPU 复位，从固定地址 (Reset Vector) 读取 BIOS 指令。执行加电自检 (POST)，检查内存、显卡等硬件。", hw: "CPU <-> BIOS Chip" },
+                { id: 2, title: "BOOTLOADER", sub: "引导阶段", desc: "BIOS 扫描启动设备 (SSD/HDD)，读取主引导记录 (MBR) 或 EFI 分区，加载 Bootloader (如 GRUB/Windows Boot Mgr)。", hw: "BIOS -> SSD -> RAM" },
+                { id: 3, title: "KERNEL LOAD", sub: "内核阶段", desc: "Bootloader 将操作系统内核 (Kernel) 加载到内存中。CPU 切换到保护模式/长模式，移交控制权给内核。", hw: "SSD -> RAM -> CPU" },
+                { id: 4, title: "USER SPACE", sub: "初始化阶段", desc: "内核初始化驱动，挂载文件系统，启动第一个用户进程 (如 systemd/init)，最终加载图形界面。", hw: "CPU <-> RAM <-> GPU" }
+            ];
+
+            const nextStep = () => setStep(prev => Math.min(prev + 1, 4));
+            const reset = () => { setStep(0); setIsPlaying(false); };
+
+            // 自动播放逻辑
+            useEffect(() => {
+                let interval;
+                if (isPlaying) {
+                    interval = setInterval(() => {
+                        setStep(prev => {
+                            if (prev >= 4) {
+                                setIsPlaying(false); // 结束播放
+                                return prev;
+                            }
+                            return prev + 1;
+                        });
+                    }, 2000); // 每2秒一步
+                }
+                return () => clearInterval(interval);
+            }, [isPlaying]);
+
+            return (
+                <div className="animate-[fadeIn_0.5s_ease-out] max-w-5xl mx-auto">
+                    <div className="text-center mb-12">
+                        <h2 className="text-3xl font-bold text-white mb-2">System Boot Sequence (启动时序)</h2>
+                        <p className="text-slate-400">从按下电源键到看见桌面的全过程解析</p>
+                    </div>
+
+                    {/* 步骤指示器 (Step Indicator) */}
+                    <div className="flex justify-between items-center mb-12 relative px-4 md:px-12">
+                        {/* 连接线 */}
+                        <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-800 -z-10"></div>
+                        <div className="absolute top-1/2 left-0 h-1 bg-cyan-500 -z-10 transition-all duration-500" style={{ width: `${(step / 4) * 100}%` }}></div>
+
+                        {bootSteps.map((s, i) => (
+                            <div key={i} className={`flex flex-col items-center gap-2 cursor-pointer transition-all ${i <= step ? 'opacity-100' : 'opacity-40'}`} onClick={() => setStep(i)}>
+                                <div className={`w-8 h-8 md:w-12 md:h-12 rounded-full flex items-center justify-center font-bold border-4 transition-all ${i <= step ? 'bg-slate-900 border-cyan-500 text-cyan-400 scale-110 shadow-[0_0_15px_rgba(6,182,212,0.5)]' : 'bg-slate-800 border-slate-600 text-slate-500'}`}>
+                                    {i + 1}
+                                </div>
+                                <span className="hidden md:block text-xs font-mono font-bold mt-2">{s.title}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                        {/* 左侧：可视化图示 */}
+                        <div className="bg-slate-900 rounded-xl p-8 border border-slate-700 min-h-[300px] relative flex flex-col items-center justify-center overflow-hidden">
+                            
+                            {/* 硬件图标 */}
+                            <div className="grid grid-cols-3 gap-8 w-full max-w-md relative z-10">
+                                <div className={`p-4 border rounded flex flex-col items-center transition-all duration-500 ${step === 0 ? 'bg-yellow-900/30 border-yellow-500 text-yellow-400 scale-110' : 'border-slate-700 text-slate-600'}`}>
+                                    <div className="text-2xl mb-1">⚡</div>
+                                    <div className="text-xs font-bold">PSU</div>
+                                </div>
+                                <div className={`p-4 border rounded flex flex-col items-center transition-all duration-500 ${step === 1 ? 'bg-blue-900/30 border-blue-500 text-blue-400 scale-110' : 'border-slate-700 text-slate-600'}`}>
+                                    <div className="text-2xl mb-1">🧠</div>
+                                    <div className="text-xs font-bold">CPU/BIOS</div>
+                                </div>
+                                <div className={`p-4 border rounded flex flex-col items-center transition-all duration-500 ${step >= 2 && step <= 3 ? 'bg-green-900/30 border-green-500 text-green-400 scale-110' : 'border-slate-700 text-slate-600'}`}>
+                                    <div className="text-2xl mb-1">💾</div>
+                                    <div className="text-xs font-bold">SSD/RAM</div>
+                                </div>
+                                <div className="col-span-3 flex justify-center">
+                                    <div className={`p-4 border rounded flex flex-col items-center transition-all duration-500 w-1/3 ${step === 4 ? 'bg-purple-900/30 border-purple-500 text-purple-400 scale-110' : 'border-slate-700 text-slate-600'}`}>
+                                        <div className="text-2xl mb-1">🖥️</div>
+                                        <div className="text-xs font-bold">USER UI</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 信号流线 SVG (含动态粒子) */}
+                            <svg className="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+                                        <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+                                    </marker>
+                                </defs>
+                                
+                                {/* Static Lines (Always visible but dim) */}
+                                <line x1="16%" y1="30%" x2="50%" y2="30%" stroke="#334155" strokeWidth="1" />
+                                <line x1="50%" y1="30%" x2="83%" y2="30%" stroke="#334155" strokeWidth="1" />
+                                <line x1="50%" y1="30%" x2="50%" y2="70%" stroke="#334155" strokeWidth="1" />
+
+                                {/* Active Flow Animations */}
+                                {step === 0 && (
+                                    <>
+                                        <line x1="16%" y1="30%" x2="50%" y2="30%" stroke="yellow" strokeWidth="2" className="signal-line" />
+                                        <circle r="4" fill="yellow" style={{animation: 'boot-particle-0 1s infinite linear'}} />
+                                    </>
+                                )}
+                                {step === 1 && (
+                                    <circle cx="50%" cy="30%" r="30" stroke="blue" strokeWidth="2" fill="none" className="animate-ping" />
+                                )}
+                                {step === 2 && (
+                                    <>
+                                        <line x1="50%" y1="30%" x2="83%" y2="30%" stroke="green" strokeWidth="2" className="signal-line" />
+                                        <circle r="4" fill="#4ade80" style={{animation: 'boot-particle-2 1s infinite linear'}} />
+                                    </>
+                                )}
+                                {step === 3 && (
+                                    <>
+                                        <line x1="83%" y1="30%" x2="50%" y2="30%" stroke="green" strokeWidth="2" className="signal-line" />
+                                        <circle r="4" fill="#4ade80" style={{animation: 'boot-particle-3 1s infinite linear'}} />
+                                    </>
+                                )}
+                                {step === 4 && (
+                                    <>
+                                        <line x1="50%" y1="30%" x2="50%" y2="70%" stroke="purple" strokeWidth="2" className="signal-line" />
+                                        <circle r="4" fill="#c084fc" cx="50%" style={{animation: 'boot-particle-4 1s infinite linear'}} />
+                                    </>
+                                )}
+                            </svg>
+
+                        </div>
+
+                        {/* 右侧：详情解释 */}
+                        <div className="space-y-6">
+                            <div className="bg-slate-800/50 border-l-4 border-cyan-500 p-6 rounded-r-lg">
+                                <div className="flex justify-between items-center mb-2">
+                                    <h3 className="text-2xl font-bold text-white">{bootSteps[step].title}</h3>
+                                    <span className="text-xs font-mono bg-slate-900 text-cyan-400 px-2 py-1 rounded">{bootSteps[step].sub}</span>
+                                </div>
+                                <p className="text-slate-300 leading-relaxed text-lg mb-4">{bootSteps[step].desc}</p>
+                                <div className="font-mono text-xs text-slate-500">
+                                    Active Hardware: <span className="text-cyan-300">{bootSteps[step].hw}</span>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-4">
+                                <button 
+                                    onClick={() => { setStep(0); setIsPlaying(true); }}
+                                    disabled={isPlaying}
+                                    className={`flex-1 py-3 rounded font-bold text-sm transition-all flex items-center justify-center gap-2 ${isPlaying ? 'bg-slate-700 text-slate-400 cursor-wait' : 'bg-green-600 hover:bg-green-500 text-white shadow-lg'}`}
+                                >
+                                    {isPlaying ? 'PLAYING...' : '▶ 自动演示 (AUTO PLAY)'}
+                                </button>
+                                
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={nextStep}
+                                        disabled={step === 4 || isPlaying}
+                                        className={`px-4 py-3 rounded bg-slate-800 border border-slate-600 hover:bg-slate-700 transition-all ${(step === 4 || isPlaying) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    >
+                                        下一步 &gt;
+                                    </button>
+                                    <button 
+                                        onClick={reset}
+                                        className="px-4 py-3 rounded bg-slate-800 border border-slate-600 text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
+                                    >
+                                        ↺
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 专业术语卡片 */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-12">
+                        <div className={`p-4 rounded border transition-all duration-500 ${step === 1 ? 'bg-blue-900/20 border-blue-500 opacity-100' : 'bg-slate-900 border-slate-800 opacity-50'}`}>
+                            <h4 className="font-bold text-blue-400 mb-1 text-sm">Reset Vector</h4>
+                            <p className="text-xs text-slate-400">CPU 通电后读取的第一条指令地址 (通常是 0xFFFFFFF0)，指向 BIOS 入口。</p>
+                        </div>
+                        <div className={`p-4 rounded border transition-all duration-500 ${step === 2 ? 'bg-green-900/20 border-green-500 opacity-100' : 'bg-slate-900 border-slate-800 opacity-50'}`}>
+                            <h4 className="font-bold text-green-400 mb-1 text-sm">MBR / UEFI</h4>
+                            <p className="text-xs text-slate-400">传统 BIOS 读取硬盘前 512 字节 (MBR)；现代 UEFI 读取 EFI 分区中的 .efi 文件。</p>
+                        </div>
+                        <div className={`p-4 rounded border transition-all duration-500 ${step === 3 ? 'bg-purple-900/20 border-purple-500 opacity-100' : 'bg-slate-900 border-slate-800 opacity-50'}`}>
+                            <h4 className="font-bold text-purple-400 mb-1 text-sm">Ring 0 / Kernel Mode</h4>
+                            <p className="text-xs text-slate-400">CPU 权限等级切换。内核拥有最高权限 (Ring 0)，可以直接控制所有硬件。</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // -----------------------------------------------------------------------------
+        // 6. 组件：BIOS 模拟器 (增强版：带有多级菜单)
+        // -----------------------------------------------------------------------------
+        const BiosSimulator = () => {
+            const [view, setView] = useState('menu'); // menu, post, health, oc
+            const [postLogs, setPostLogs] = useState([]);
+            
+            // Health Monitor State
+            const [healthData, setHealthData] = useState({ vcore: 1.25, temp: 45, fan: 1200 });
+
+            // Overclocking State
+            const [multiplier, setMultiplier] = useState(32);
+            
+            // 模拟 POST 自检过程
+            const runPost = () => {
+                setPostLogs([]);
+                const logs = [
+                    "BIOS Date 08/15/23 15:23:01 Ver: 1.0.2",
+                    "CPU: AMD Ryzen 9 7950X 16-Core Processor",
+                    "Memory Test: 65536K OK",
+                    "Detecting Primary Master ... Samsung SSD 990 PRO 1TB",
+                    "Detecting Primary Slave ... None",
+                    "Initializing USB Controllers ... Done",
+                    "ACPI Controller ... Initialized",
+                    "Boot Sequence Verified.",
+                    "System Booting..."
+                ];
+                
+                let i = 0;
+                const interval = setInterval(() => {
+                    if (i < logs.length) {
+                        setPostLogs(prev => [...prev, logs[i]]);
+                        i++;
+                    } else {
+                        clearInterval(interval);
+                    }
+                }, 300);
+            };
+
+            // 硬件监控数据的随机抖动
+            useEffect(() => {
+                if (view === 'health') {
+                    const interval = setInterval(() => {
+                        setHealthData(prev => ({
+                            vcore: 1.25 + (Math.random() * 0.02 - 0.01),
+                            temp: Math.floor(45 + Math.random() * 3),
+                            fan: Math.floor(1200 + Math.random() * 50 - 25)
+                        }));
+                    }, 800);
+                    return () => clearInterval(interval);
+                }
+            }, [view]);
+
+            // 进入 POST 页面时自动运行
+            useEffect(() => {
+                if (view === 'post') runPost();
+            }, [view]);
+
+            // 渲染：主菜单
+            const renderMenu = () => (
+                <div className="space-y-4 relative z-10 animate-[fadeIn_0.3s]">
+                    <div className="flex justify-between border-b-2 border-white pb-2 mb-6 text-lg md:text-xl">
+                        <span>Phoenix - AwardBIOS CMOS Setup Utility</span>
+                        <span>(Rev 1.0.2a)</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-2 px-2 md:px-4 text-lg md:text-xl tracking-wide cursor-default">
+                        <div className="px-2 py-1 text-gray-400">Standard CMOS Features</div>
+                        <div className="px-2 py-1 text-gray-400">Advanced BIOS Features</div>
+                        <div className="px-2 py-1 text-gray-400">Integrated Peripherals</div>
+                        <div className="px-2 py-1 text-gray-400">Power Management Setup</div>
+                        
+                        {/* 可交互的菜单项 */}
+                        <div 
+                            className="cursor-pointer bg-white text-[#0000AA] px-2 py-1 font-bold animate-pulse md:hover:scale-105 transition-transform"
+                            onClick={() => setView('health')}
+                        >
+                            ▶ PC Health Status (Click Me)
+                        </div>
+                        
+                        <div 
+                            className="cursor-pointer hover:bg-white hover:text-[#0000AA] px-2 py-1 transition-colors"
+                            onClick={() => setView('oc')}
+                        >
+                            Frequency/Voltage Control
+                        </div>
+
+                        <div 
+                            className="cursor-pointer hover:bg-white hover:text-[#0000AA] px-2 py-1 transition-colors"
+                            onClick={() => setView('post')}
+                        >
+                            Load Optimized Defaults (Run POST)
+                        </div>
+                        
+                        <div className="px-2 py-1 text-gray-400">Set Supervisor Password</div>
+                    </div>
+
+                    <div className="mt-12 border border-white p-2 text-yellow-300 text-base md:text-lg">
+                        <div className="flex justify-between">
+                            <span>F10: Save & Exit Setup</span>
+                            <span>Click Items to Select</span>
+                        </div>
+                        <div className="mt-2 text-white">
+                           &uarr;&darr;&larr;&rarr;: Move | ENTER: Select | ESC: Exit
+                        </div>
+                    </div>
+                </div>
+            );
+
+            // 渲染：硬件监控
+            const renderHealth = () => (
+                <div className="relative z-10 animate-[fadeIn_0.3s]">
+                    <h3 className="text-yellow-300 border-b border-white pb-2 mb-4 text-xl">PC Health Status</h3>
+                    
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-lg md:text-xl font-mono">
+                        <div className="text-white">CPU Vcore</div>
+                        <div className="text-yellow-300">{healthData.vcore.toFixed(3)} V</div>
+                        
+                        <div className="text-white">CPU Temperature</div>
+                        <div className="text-green-300">{healthData.temp}°C / {Math.floor(healthData.temp * 1.8 + 32)}°F</div>
+                        
+                        <div className="text-white">CPU Fan Speed</div>
+                        <div className="text-red-300">{healthData.fan} RPM</div>
+                        
+                        <div className="text-white">System Temperature</div>
+                        <div className="text-green-300">32°C</div>
+
+                        <div className="text-gray-400 mt-4">Case Open Status</div>
+                        <div className="text-gray-400 mt-4">Disabled</div>
+                    </div>
+
+                    <button 
+                        onClick={() => setView('menu')}
+                        className="mt-8 px-4 py-1 bg-gray-300 text-[#0000AA] font-bold hover:bg-white transition-colors uppercase border-2 border-white"
+                    >
+                        [ ESC ] Back to Menu
+                    </button>
+                </div>
+            );
+
+            // 渲染：超频控制
+            const renderOverclock = () => (
+                <div className="relative z-10 animate-[fadeIn_0.3s]">
+                    <h3 className="text-yellow-300 border-b border-white pb-2 mb-4 text-xl">Frequency/Voltage Control</h3>
+                    
+                    <div className="space-y-4 text-lg md:text-xl font-mono">
+                        <div className="flex justify-between items-center bg-[#0000AA] border border-gray-500 p-2">
+                            <span className="text-gray-300">CPU Clock Ratio</span>
+                            <div className="flex items-center gap-4">
+                                <button 
+                                    onClick={() => setMultiplier(m => Math.max(10, m - 1))}
+                                    className="text-white hover:text-yellow-300 px-2"
+                                >[-]</button>
+                                <span className="text-white font-bold min-w-[3ch] text-center">{multiplier}x</span>
+                                <button 
+                                    onClick={() => setMultiplier(m => Math.min(50, m + 1))}
+                                    className="text-white hover:text-yellow-300 px-2"
+                                >[+]</button>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-between items-center p-2">
+                            <span className="text-gray-300">CPU Base Frequency</span>
+                            <span className="text-white">100.00 MHz</span>
+                        </div>
+
+                        <div className="flex justify-between items-center p-2 border-t border-gray-600 mt-4 pt-4">
+                            <span className="text-yellow-300 font-bold">Target CPU Frequency</span>
+                            <span className="text-yellow-300 font-bold">{(100 * multiplier / 1000).toFixed(2)} GHz</span>
+                        </div>
+                    </div>
+
+                    <div className="mt-8 text-sm text-gray-400">
+                        * Warning: Overclocking may damage your hardware. <br/>
+                        * Use arrows to adjust multiplier.
+                    </div>
+
+                    <button 
+                        onClick={() => setView('menu')}
+                        className="mt-6 px-4 py-1 bg-gray-300 text-[#0000AA] font-bold hover:bg-white transition-colors uppercase border-2 border-white"
+                    >
+                        [ ESC ] Back to Menu
+                    </button>
+                </div>
+            );
+
+            // 渲染：POST 自检
+            const renderPost = () => (
+                <div className="relative z-10 font-retro text-lg md:text-xl animate-[fadeIn_0.3s]">
+                    <h3 className="text-yellow-300 border-b border-white pb-2 mb-4">POST (Power-On Self-Test) Simulator</h3>
+                    
+                    <div className="font-mono space-y-2 min-h-[200px]">
+                        {postLogs.map((log, index) => (
+                            <div key={index} className="animate-[fadeIn_0.1s]">
+                                {log}
+                            </div>
+                        ))}
+                        {postLogs.length === 9 && (
+                            <div className="mt-4 text-green-300 animate-pulse">
+                                > SYSTEM INITIALIZED. HANDING OVER TO OS BOOTLOADER...
+                            </div>
+                        )}
+                    </div>
+
+                    <button 
+                        onClick={() => setView('menu')}
+                        className="mt-6 px-4 py-1 bg-gray-300 text-[#0000AA] font-bold hover:bg-white transition-colors uppercase border-2 border-white"
+                    >
+                        [ ESC ] Return to Menu
+                    </button>
+                </div>
+            );
+
+            return (
+                <div className="animate-[fadeIn_0.5s_ease-out]">
+                    <div className="text-center mb-8">
+                        <h2 className="text-2xl font-bold text-white mb-2">Firmware Level: BIOS / UEFI</h2>
+                        <p className="text-slate-400 max-w-2xl mx-auto">
+                            BIOS (Basic Input/Output System) 是存储在主板 ROM 芯片中的底层固件。它负责硬件初始化 (POST) 和引导加载程序 (Bootloader) 的启动。
+                        </p>
+                    </div>
+
+                    {/* BIOS 容器 */}
+                    <div className="bg-[#0000AA] p-4 md:p-8 rounded-lg shadow-2xl font-retro text-white border-4 md:border-8 border-gray-400 relative overflow-hidden min-h-[450px] max-w-4xl mx-auto flex flex-col">
+                        {/* 扫描线效果 */}
+                        <div className="absolute top-0 left-0 w-full h-full pointer-events-none bios-scanline opacity-30"></div>
+                        
+                        {/* 根据 view 状态渲染不同界面 */}
+                        {view === 'menu' && renderMenu()}
+                        {view === 'health' && renderHealth()}
+                        {view === 'oc' && renderOverclock()}
+                        {view === 'post' && renderPost()}
+                    </div>
+                </div>
+            );
+        };
+
+        // -----------------------------------------------------------------------------
+        // 7. 主应用
+        // -----------------------------------------------------------------------------
+        function App() {
+            const [activeTab, setActiveTab] = useState('arch');
+            const [selectedId, setSelectedId] = useState('cpu');
+
+            const currentPart = HARDWARE_DATA.find(p => p.id === selectedId);
+
+            return (
+                <div className="min-h-screen bg-grid text-slate-300 pb-20">
+                    
+                    {/* Header */}
+                    <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+                        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 bg-cyan-500 rounded-sm rotate-45"></div>
+                                <span className="font-mono font-bold text-lg text-slate-100 tracking-tight">HARDWARE<span className="text-cyan-500">_ARCH</span></span>
+                            </div>
+                            <nav className="flex gap-1 bg-slate-800/50 p-1 rounded-lg overflow-x-auto scrollbar-hide">
+                                {[
+                                    { id: 'arch', label: '硬件架构' },
+                                    { id: 'memory', label: '存储分级' },
+                                    { id: 'compute', label: '异构计算' },
+                                    { id: 'bios', label: '固件/BIOS' },
+                                    { id: 'boot', label: '启动流程' }
+                                ].map(tab => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`px-3 md:px-4 py-1.5 text-xs md:text-sm font-medium rounded transition-colors whitespace-nowrap ${
+                                            activeTab === tab.id 
+                                            ? 'bg-slate-700 text-white shadow-sm' 
+                                            : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                                        }`}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </nav>
+                        </div>
+                    </header>
+
+                    <main className="max-w-6xl mx-auto px-4 pt-12">
+                        
+                        {/* TAB 1: 硬件架构 (Technical Specs) */}
+                        {activeTab === 'arch' && (
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-[fadeIn_0.5s_ease-out]">
+                                {/* 侧边栏列表 */}
+                                <div className="lg:col-span-4 space-y-2">
+                                    <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 px-2">System Components</h2>
+                                    {HARDWARE_DATA.map(part => (
+                                        <button
+                                            key={part.id}
+                                            onClick={() => setSelectedId(part.id)}
+                                            className={`w-full text-left p-4 rounded border transition-all group ${
+                                                selectedId === part.id
+                                                ? 'bg-slate-800 border-cyan-500/50 shadow-lg'
+                                                : 'bg-slate-900/30 border-slate-800 hover:border-slate-600'
+                                            }`}
+                                        >
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className={`font-mono font-bold ${selectedId === part.id ? 'text-cyan-400' : 'text-slate-300'}`}>
+                                                    {part.id.toUpperCase()}
+                                                </span>
+                                                <div className={`w-5 h-5 ${selectedId === part.id ? 'text-cyan-400' : 'text-slate-600'}`}>
+                                                    {part.icon}
+                                                </div>
+                                            </div>
+                                            <div className="text-xs text-slate-500 group-hover:text-slate-400">{part.cnName}</div>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* 详情面板 */}
+                                <div className="lg:col-span-8">
+                                    <div className="bg-slate-800 rounded-xl border border-slate-700 p-8 h-full shadow-2xl relative overflow-hidden">
+                                        {/* 装饰背景 */}
+                                        <div className="absolute top-0 right-0 p-32 bg-cyan-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+                                        
+                                        <div className="relative z-10">
+                                            <div className="flex items-baseline gap-4 mb-6 border-b border-slate-700 pb-4">
+                                                <h1 className="text-3xl font-bold text-white tracking-tight">{currentPart.name}</h1>
+                                                <span className="font-mono text-cyan-500 text-sm bg-cyan-900/20 px-2 py-1 rounded">
+                                                    {currentPart.spec}
+                                                </span>
+                                            </div>
+
+                                            <div className="space-y-8">
+                                                <div className="space-y-2">
+                                                    <h3 className="text-sm font-bold text-slate-400 flex items-center gap-2">
+                                                        <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
+                                                        技术定义 (Definition)
+                                                    </h3>
+                                                    <p className="text-slate-300 leading-relaxed text-lg border-l-2 border-slate-600 pl-4">
+                                                        {currentPart.definition}
+                                                    </p>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <h3 className="text-sm font-bold text-slate-400 flex items-center gap-2">
+                                                        <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
+                                                        工作原理 (Mechanism)
+                                                    </h3>
+                                                    <div className="bg-slate-900/50 p-4 rounded-lg font-mono text-sm text-slate-300 leading-relaxed border border-slate-700/50">
+                                                        {currentPart.principle}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TAB 2: 存储分级 (Data Hierarchy) - 汉化版 */}
+                        {activeTab === 'memory' && (
+                            <div className="space-y-8 animate-[fadeIn_0.5s_ease-out]">
+                                <div className="text-center mb-10">
+                                    <h2 className="text-2xl font-bold text-white mb-2">存储层次结构与延迟 (Memory Hierarchy)</h2>
+                                    <p className="text-slate-400 max-w-2xl mx-auto">
+                                        存储系统是速度与容量的权衡。理解数据在 <span className="text-yellow-400">硬盘 (Disk)</span>、<span className="text-green-400">内存 (RAM)</span> 和 <span className="text-purple-400">显存 (VRAM)</span> 之间的流动是理解性能瓶颈的关键。
+                                    </p>
+                                </div>
+
+                                {/* 核心：动画演示 */}
+                                <DataFlowAnimation />
+
+                                {/* 详细参数对比表 */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                                    {/* Storage Card */}
+                                    <div className="bg-slate-800/50 p-6 rounded-xl border-t-2 border-yellow-500">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <h3 className="font-bold text-lg text-slate-200">硬盘存储 (SSD/Storage)</h3>
+                                            <span className="text-xs font-mono bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded">非易失性</span>
+                                        </div>
+                                        <ul className="space-y-3 text-sm text-slate-400 font-mono">
+                                            <li className="flex justify-between border-b border-slate-700 pb-1">
+                                                <span>访问延迟 (Latency)</span> <span className="text-white">~0.05 ms</span>
+                                            </li>
+                                            <li className="flex justify-between border-b border-slate-700 pb-1">
+                                                <span>传输带宽 (Bandwidth)</span> <span className="text-white">3-7 GB/s</span>
+                                            </li>
+                                            <li className="flex justify-between border-b border-slate-700 pb-1">
+                                                <span>典型容量 (Capacity)</span> <span className="text-white">TB 级 (海量)</span>
+                                            </li>
+                                            <li className="pt-2 text-slate-500 text-xs font-sans">
+                                                负责数据永久保存。即便现在的 NVMe 协议很快，在 CPU 看来依然慢如蜗牛。
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    {/* RAM Card */}
+                                    <div className="bg-slate-800/50 p-6 rounded-xl border-t-2 border-green-500 shadow-lg bg-slate-800">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <h3 className="font-bold text-lg text-slate-200">系统内存 (System RAM)</h3>
+                                            <span className="text-xs font-mono bg-green-500/20 text-green-300 px-2 py-1 rounded">易失性</span>
+                                        </div>
+                                        <ul className="space-y-3 text-sm text-slate-400 font-mono">
+                                            <li className="flex justify-between border-b border-slate-700 pb-1">
+                                                <span>访问延迟 (Latency)</span> <span className="text-white">~80-100 ns</span>
+                                            </li>
+                                            <li className="flex justify-between border-b border-slate-700 pb-1">
+                                                <span>传输带宽 (Bandwidth)</span> <span className="text-white">50-100 GB/s</span>
+                                            </li>
+                                            <li className="flex justify-between border-b border-slate-700 pb-1">
+                                                <span>典型容量 (Capacity)</span> <span className="text-white">GB 级 (适中)</span>
+                                            </li>
+                                            <li className="pt-2 text-slate-500 text-xs font-sans">
+                                                速度比 SSD 快约 10 倍以上。程序必须先加载到这里，CPU 才能寻址执行。
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    {/* VRAM Card */}
+                                    <div className="bg-slate-800/50 p-6 rounded-xl border-t-2 border-purple-500">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <h3 className="font-bold text-lg text-slate-200">专用显存 (VRAM)</h3>
+                                            <span className="text-xs font-mono bg-purple-500/20 text-purple-300 px-2 py-1 rounded">易失性</span>
+                                        </div>
+                                        <ul className="space-y-3 text-sm text-slate-400 font-mono">
+                                            <li className="flex justify-between border-b border-slate-700 pb-1">
+                                                <span>访问延迟 (Latency)</span> <span className="text-white">极低 (Very Low)</span>
+                                            </li>
+                                            <li className="flex justify-between border-b border-slate-700 pb-1">
+                                                <span>传输带宽 (Bandwidth)</span> <span className="text-white">500+ GB/s</span>
+                                            </li>
+                                            <li className="flex justify-between border-b border-slate-700 pb-1">
+                                                <span>典型容量 (Capacity)</span> <span className="text-white">GB 级 (受限)</span>
+                                            </li>
+                                            <li className="pt-2 text-slate-500 text-xs font-sans">
+                                                通过超宽位宽（如 256-bit）实现极高吞吐量，专供 GPU 快速读取纹理和渲染画面。
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TAB 3: 异构计算 (CPU vs GPU) */}
+                        {activeTab === 'compute' && (
+                            <div className="space-y-12 animate-[fadeIn_0.5s_ease-out]">
+                                
+                                {/* 1. 流水线架构模拟 */}
+                                <ComputeSimulation />
+
+                                {/* 2. 新增：多任务调度模拟 */}
+                                <CpuTaskSwitchingDemo />
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                                    
+                                    {/* CPU Block */}
+                                    <div className="relative group">
+                                        <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+                                        <div className="relative bg-slate-900 rounded-xl p-8 border border-slate-700 h-full">
+                                            <div className="flex items-center gap-4 mb-6">
+                                                <div className="w-12 h-12 bg-blue-900/50 rounded flex items-center justify-center text-blue-400">
+                                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-2xl font-bold text-white">Serial Processing</h3>
+                                                    <p className="text-blue-400 font-mono text-sm">串行计算架构</p>
+                                                </div>
+                                            </div>
+                                            <p className="text-slate-400 mb-6 leading-relaxed">
+                                                CPU 针对低延迟进行了优化。通过巨大的缓存（L1/L2/L3 Cache）和复杂的控制单元，它能极快地处理单个复杂任务序列。
+                                            </p>
+                                            <div className="bg-slate-950 p-4 rounded font-mono text-xs text-blue-300 border-l-2 border-blue-500">
+                                                // 适用场景<br/>
+                                                OS Kernel Management<br/>
+                                                Complex Logic Branching<br/>
+                                                I/O Scheduling
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* GPU Block */}
+                                    <div className="relative group">
+                                        <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+                                        <div className="relative bg-slate-900 rounded-xl p-8 border border-slate-700 h-full">
+                                            <div className="flex items-center gap-4 mb-6">
+                                                <div className="w-12 h-12 bg-purple-900/50 rounded flex items-center justify-center text-purple-400">
+                                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-2xl font-bold text-white">Parallel Processing</h3>
+                                                    <p className="text-purple-400 font-mono text-sm">并行计算架构</p>
+                                                </div>
+                                            </div>
+                                            <p className="text-slate-400 mb-6 leading-relaxed">
+                                                GPU 针对高吞吐量进行了优化。拥有数千个小型核心，可以在同一时间对大量数据执行相同的指令（SIMD）。
+                                            </p>
+                                            <div className="bg-slate-950 p-4 rounded font-mono text-xs text-purple-300 border-l-2 border-purple-500">
+                                                // 适用场景<br/>
+                                                Pixel/Vertex Rendering<br/>
+                                                Deep Learning (Matrix Ops)<br/>
+                                                Video Encoding
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="text-center pt-8">
+                                    <div className="inline-block bg-slate-800 rounded-full px-6 py-2 text-sm text-slate-400 border border-slate-700">
+                                        💡 现代计算机利用 <span className="text-white font-bold">异构计算 (Heterogeneous Computing)</span> 协同两者优势。
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TAB 4: BIOS Simulator (Restored & Upgraded) */}
+                        {activeTab === 'bios' && <BiosSimulator />}
+
+                        {/* TAB 5: Boot Process (New!) */}
+                        {activeTab === 'boot' && <BootProcessVisualizer />}
+
+                    </main>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

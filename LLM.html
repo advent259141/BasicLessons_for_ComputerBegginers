@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>从细胞到智慧：AI 底层原理互动演示</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        /* Custom scrollbar hiding for clean UI */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        body {
+            background-color: #0f1117;
+            color: #f3f4f6;
+            margin: 0;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        
+        /* --- 修复滑块样式 (增强版) --- */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+            height: 24px; /* 增加点击区域高度 */
+            display: block;
+            width: 100%;
+            margin: 10px 0;
+        }
+        
+        /* 轨道样式：确保有明显的背景色 */
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.2); /* 明显的半透明白轨道 */
+            border-radius: 3px;
+            border: 1px solid rgba(0,0,0,0.3);
+        }
+        input[type=range]::-moz-range-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            border: 1px solid rgba(0,0,0,0.3);
+        }
+
+        /* 滑块头样式：更大、更亮、带阴影 */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #60a5fa; /* 亮蓝色 */
+            cursor: pointer;
+            margin-top: -8px; /* (6px轨道 - 20px滑块) / 2 = -7px, 微调至 -8px */
+            box-shadow: 0 0 0 2px #0f1117, 0 0 10px rgba(96, 165, 250, 0.8); /* 外圈深色描边+发光 */
+            border: 2px solid white;
+            transition: transform 0.1s;
+        }
+
+        input[type=range]::-moz-range-thumb {
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #60a5fa;
+            cursor: pointer;
+            box-shadow: 0 0 0 2px #0f1117, 0 0 10px rgba(96, 165, 250, 0.8);
+            border: 2px solid white;
+        }
+
+        input[type=range]:focus {
+            outline: none; 
+        }
+        input[type=range]:active::-webkit-slider-thumb {
+            transform: scale(1.2);
+            background: #3b82f6;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- 1. 环境变量补丁 -->
+    <script>
+        window.process = { env: { NODE_ENV: 'production' } };
+    </script>
+
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useRef } from 'https://esm.sh/react@18.2.0';
+        import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client?deps=react@18.2.0';
+        import { motion, AnimatePresence } from 'https://esm.sh/framer-motion@10.16.4?deps=react@18.2.0,react-dom@18.2.0';
+        import * as THREE from 'https://esm.sh/three@0.160.0';
+        import { 
+            Brain, Eye, Cpu, ArrowRight, Activity, Zap, Network, ChevronRight, 
+            Home, BookOpen, Info, Search, Key, Database, PenTool, Sparkles, Box, 
+            BarChart2, ScanLine, Grid, Move3d, Library, Bot, Rocket, Scroll, 
+            Waves, Moon, MessageCircle, Globe, ThumbsUp, Star, Code, RefreshCw, ArrowLeftRight,
+            Binary, GitMerge, Layers
+        } from 'https://esm.sh/lucide-react@0.292.0?deps=react@18.2.0';
+
+        // --- 自定义 SVG 图标区域 ---
+        const IconOpenAI = ({ className }) => (
+            <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+                <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.142.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1195 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-1.4591l-.142.0805L8.704 7.4593a.7948.7948 0 0 0-.3927.6813zm1.09-1.1083l2.404-1.3867 2.462 1.4222v2.771l-2.462 1.4223-2.462-1.4223z"/>
+            </svg>
+        );
+
+        const IconGoogle = ({ className }) => (
+            <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+                <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
+            </svg>
+        );
+
+        const IconX = ({ className }) => (
+            <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+        );
+
+        // --- 辅助组件 ---
+        const Card = ({ title, icon: Icon, children, className = "" }) => (
+            <div className={`bg-gray-800/50 backdrop-blur-md border border-gray-700 rounded-xl p-6 shadow-xl ${className} h-full`}>
+                <div className="flex items-center gap-3 mb-6 border-b border-gray-700 pb-4">
+                    <div className="p-2 bg-blue-500/20 rounded-lg">
+                        <Icon className="w-6 h-6 text-blue-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white">{title}</h3>
+                </div>
+                {children}
+            </div>
+        );
+
+        const ConceptBox = ({ title, icon: Icon, children, color = "blue" }) => {
+            const styles = {
+                blue: { bg: "bg-blue-900/20", border: "border-blue-500/30", text: "text-blue-400" },
+                purple: { bg: "bg-purple-900/20", border: "border-purple-500/30", text: "text-purple-400" },
+                green: { bg: "bg-green-900/20", border: "border-green-500/30", text: "text-green-400" },
+                indigo: { bg: "bg-indigo-900/20", border: "border-indigo-500/30", text: "text-indigo-400" },
+                amber: { bg: "bg-amber-900/20", border: "border-amber-500/30", text: "text-amber-400" },
+                rose: { bg: "bg-rose-900/20", border: "border-rose-500/30", text: "text-rose-400" }
+            };
+            const currentStyle = styles[color] || styles.blue;
+            return (
+                <div className={`${currentStyle.bg} border ${currentStyle.border} rounded-lg p-4 my-4 text-sm`}>
+                    <h4 className={`${currentStyle.text} font-bold mb-2 flex items-center gap-2 text-base`}>
+                        {Icon && <Icon size={18} />} {title}
+                    </h4>
+                    <div className="text-gray-300 leading-relaxed space-y-2">
+                        {children}
+                    </div>
+                </div>
+            );
+        };
+
+        const PageFooter = ({ onNext, nextLabel }) => (
+            <div className="mt-8 flex justify-end border-t border-gray-800 pt-6">
+                <button onClick={onNext} className="group flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-full transition-all shadow-lg hover:shadow-blue-500/25">
+                    <span>{nextLabel || "下一章"}</span>
+                    <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                </button>
+            </div>
+        );
+
+        // --- 3D Visualization ---
+        const createTextSprite = (text, color = 'white') => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const fontSize = 64; 
+            ctx.font = `Bold ${fontSize}px Arial`;
+            const textWidth = ctx.measureText(text).width;
+            canvas.width = textWidth + 20;
+            canvas.height = fontSize + 20;
+            ctx.font = `Bold ${fontSize}px Arial`;
+            ctx.fillStyle = color;
+            ctx.fillText(text, 10, fontSize);
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.SpriteMaterial({ map: texture });
+            const sprite = new THREE.Sprite(material);
+            sprite.scale.set(canvas.width * 0.012, canvas.height * 0.012, 1);
+            return sprite;
+        };
+
+        const WordEmbeddingVisualizer = () => {
+            const mountRef = useRef(null);
+            useEffect(() => {
+                if (!mountRef.current) return;
+                const width = mountRef.current.clientWidth;
+                const height = mountRef.current.clientHeight;
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x111827); 
+                const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+                camera.position.set(8, 6, 10);
+                camera.lookAt(0, 0, 0);
+                const renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(width, height);
+                mountRef.current.appendChild(renderer.domElement);
+                const gridHelper = new THREE.GridHelper(12, 12, 0x444444, 0x222222);
+                scene.add(gridHelper);
+                const axesHelper = new THREE.AxesHelper(2); 
+                scene.add(axesHelper);
+                
+                const words = [
+                    { text: "国王", pos: [3, 2, 1], color: "#ef4444" }, 
+                    { text: "王后", pos: [3.5, 2.5, 1.5], color: "#ef4444" },
+                    { text: "苹果", pos: [-3, 1.5, -2], color: "#22c55e" }, 
+                    { text: "香蕉", pos: [-3.5, 1, -2.5], color: "#22c55e" }, 
+                    { text: "猫", pos: [0.5, -1.5, 3], color: "#3b82f6" }, 
+                    { text: "狗", pos: [1, -1.2, 3.5], color: "#3b82f6" }, 
+                ];
+                const origin = new THREE.Vector3(0, 0, 0);
+                words.forEach(w => {
+                    const vec = new THREE.Vector3(...w.pos);
+                    const arrow = new THREE.ArrowHelper(vec.clone().normalize(), origin, vec.length() - 0.2, w.color, 0.3, 0.2);
+                    scene.add(arrow);
+                    const geometry = new THREE.SphereGeometry(0.1, 16, 16);
+                    const material = new THREE.MeshBasicMaterial({ color: w.color });
+                    const sphere = new THREE.Mesh(geometry, material);
+                    sphere.position.copy(vec);
+                    scene.add(sphere);
+                    const sprite = createTextSprite(w.text, w.color);
+                    sprite.position.copy(vec).add(new THREE.Vector3(0, 0.5, 0));
+                    scene.add(sprite);
+                });
+
+                let isDragging = false;
+                let previousMousePosition = { x: 0, y: 0 };
+                let theta = 0.6; 
+                let phi = 1.0;   
+                const radius = 14;
+
+                const updateCamera = () => {
+                    camera.position.x = radius * Math.sin(phi) * Math.cos(theta);
+                    camera.position.y = radius * Math.cos(phi);
+                    camera.position.z = radius * Math.sin(phi) * Math.sin(theta);
+                    camera.lookAt(0, 0, 0);
+                };
+                updateCamera();
+
+                const onMouseDown = () => { isDragging = true; };
+                const onMouseUp = () => { isDragging = false; };
+                const onMouseMove = (e) => {
+                    if (isDragging) {
+                        const deltaMove = { x: e.offsetX - previousMousePosition.x, y: e.offsetY - previousMousePosition.y };
+                        theta -= deltaMove.x * 0.005;
+                        phi -= deltaMove.y * 0.005;
+                        phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi));
+                        updateCamera();
+                    }
+                    previousMousePosition = { x: e.offsetX, y: e.offsetY };
+                };
+
+                renderer.domElement.addEventListener('mousedown', onMouseDown);
+                window.addEventListener('mouseup', onMouseUp);
+                renderer.domElement.addEventListener('mousemove', onMouseMove);
+                const animate = () => {
+                    requestAnimationFrame(animate);
+                    renderer.render(scene, camera);
+                };
+                animate();
+                return () => {
+                    renderer.domElement.removeEventListener('mousedown', onMouseDown);
+                    window.removeEventListener('mouseup', onMouseUp);
+                    renderer.domElement.removeEventListener('mousemove', onMouseMove);
+                    if (mountRef.current && renderer.domElement && mountRef.current.contains(renderer.domElement)) {
+                        mountRef.current.removeChild(renderer.domElement);
+                    }
+                    renderer.dispose();
+                };
+            }, []);
+            return (
+                <div className="mt-4 bg-black/40 rounded-xl border border-gray-700 overflow-hidden">
+                    <div className="flex justify-between items-center px-4 py-2 bg-gray-800 border-b border-gray-700">
+                        <h5 className="text-sm font-bold text-gray-300 flex items-center gap-2"><Move3d size={16} className="text-blue-400"/> 3D 词义空间 (Semantic Space)</h5>
+                        <span className="text-[10px] text-gray-500">按住鼠标拖拽以旋转视角</span>
+                    </div>
+                    <div ref={mountRef} className="w-full h-72 cursor-move relative bg-gray-900/50">
+                        <div className="absolute top-4 left-4 text-xs text-gray-300 pointer-events-none bg-black/50 p-2 rounded border border-gray-600">
+                            <div className="flex items-center gap-2 mb-1"><div className="w-2 h-2 rounded-full bg-red-500"></div> 皇室概念</div>
+                            <div className="flex items-center gap-2 mb-1"><div className="w-2 h-2 rounded-full bg-green-500"></div> 水果概念</div>
+                            <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-500"></div> 动物概念</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Demo Components ---
+        const NeuronDemo = ({ onNext }) => {
+            const [input1, setInput1] = useState(0.5);
+            const [weight1, setWeight1] = useState(0.8);
+            const [bias, setBias] = useState(-0.2);
+            const activation = Math.max(0, (input1 * weight1) + bias);
+            const isFired = activation > 0.5;
+
+            return (
+                <div className="max-w-4xl mx-auto">
+                    <Card title="Step 1: 神经元 (Neuron) —— 逻辑的基石" icon={Zap}>
+                        <div className="grid md:grid-cols-2 gap-12 items-start">
+                            <div className="space-y-6">
+                                <p className="text-gray-300 leading-relaxed">这是 AI 最基本的细胞。想象它是一个<b>挑剔的面试官</b>。他根据你的条件（输入），结合他心里的标准（权重），最后决定是否录用（激活）。</p>
+                                <ConceptBox title="深度解析：这个公式是什么意思？" icon={Info} color="blue">
+                                    <div className="font-mono bg-black/30 p-2 rounded text-center text-lg mb-3 text-white">y = f(w·x + b)</div>
+                                    <ul className="space-y-3">
+                                        <li><b className="text-blue-300">x (输入/Input):</b> 外界给的信息。比如“你考了100分”，<i>x</i> = 100。</li>
+                                        <li><b className="text-purple-300">w (权重/Weight):</b> 神经元对这个信息的<b>重视程度</b>。如果面试官很看重成绩，<i>w</i> 就很高（比如 0.8）；如果不看重，<i>w</i> 就很低。</li>
+                                        <li><b className="text-red-300">b (偏置/Bias):</b> 神经元本身的<b>门槛</b>。比如面试官心情不好，起步分就是负的（<i>b</i> = -10），你需要表现得更好才能及格。</li>
+                                        <li><b className="text-yellow-300">f (激活函数):</b> 最后的<b>开关</b>。算出来的总分如果小于0，可能就直接归零（ReLU函数），代表这个神经元“不放电/不激活”。</li>
+                                    </ul>
+                                </ConceptBox>
+                                <div className="bg-gray-900/50 p-6 rounded-lg space-y-6 border border-gray-700">
+                                    <div className="space-y-2">
+                                        <label className="text-sm text-blue-400 font-medium flex justify-between">输入 x (Input) <span>{input1.toFixed(1)}</span></label>
+                                        <input type="range" min="0" max="1" step="0.1" value={input1} onChange={(e) => setInput1(parseFloat(e.target.value))} className="w-full h-6 bg-gray-700 rounded-lg cursor-pointer accent-blue-500" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm text-purple-400 font-medium flex justify-between">权重 w (Weight) <span>{weight1.toFixed(1)}</span></label>
+                                        <input type="range" min="0" max="2" step="0.1" value={weight1} onChange={(e) => setWeight1(parseFloat(e.target.value))} className="w-full h-6 bg-gray-700 rounded-lg cursor-pointer accent-purple-500" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm text-red-400 font-medium flex justify-between">偏置 b (Bias) <span>{bias.toFixed(1)}</span></label>
+                                        <input type="range" min="-1" max="0" step="0.1" value={bias} onChange={(e) => setBias(parseFloat(e.target.value))} className="w-full h-6 bg-gray-700 rounded-lg cursor-pointer accent-red-500" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="relative h-full min-h-[400px] flex items-center justify-center bg-gray-900 rounded-2xl border border-gray-700 shadow-inner overflow-hidden">
+                                <div className="absolute top-4 right-4 text-xs font-mono text-gray-500">当前状态: {isFired ? "激活 (1)" : "静默 (0)"}</div>
+                                <motion.div className="absolute left-10 flex items-center justify-center">
+                                    <span className="absolute -top-8 text-blue-400 font-bold text-lg">x</span>
+                                    <motion.div className="w-8 h-8 rounded-full bg-blue-500 shadow-[0_0_15px_#3b82f6]" animate={{ scale: 0.8 + input1 * 0.5 }} />
+                                </motion.div>
+                                <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                                    <line x1="12%" y1="50%" x2="50%" y2="50%" stroke={isFired ? "#60A5FA" : "#374151"} strokeWidth={Math.max(1, weight1 * 8)} strokeLinecap="round" />
+                                    <text x="30%" y="50%" dy="-15" fill="#a855f7" fontSize="14" fontWeight="bold" textAnchor="middle">× w</text>
+                                </svg>
+                                <motion.div className={`relative z-10 w-32 h-32 rounded-full flex flex-col items-center justify-center border-4 transition-all duration-300 ${isFired ? 'bg-yellow-500 border-yellow-300 shadow-[0_0_50px_rgba(234,179,8,0.6)]' : 'bg-gray-800 border-gray-600'}`} animate={{ scale: isFired ? 1.1 : 1 }}>
+                                    <span className="text-xs text-gray-900/60 font-bold uppercase mb-1">{isFired ? "f(...) > 0" : "f(...) ≤ 0"}</span>
+                                    <span className="text-3xl font-bold text-gray-900">{activation.toFixed(2)}</span>
+                                    <span className="text-[10px] text-gray-800 mt-1">+ b ({bias})</span>
+                                </motion.div>
+                                <motion.div className="absolute right-10 flex items-center justify-center">
+                                    <span className="absolute -top-8 text-green-400 font-bold text-lg">y</span>
+                                    <motion.div className={`w-8 h-8 rounded-full transition-colors duration-300 ${isFired ? 'bg-green-500 shadow-[0_0_20px_#22c55e]' : 'bg-gray-800'}`} />
+                                </motion.div>
+                            </div>
+                        </div>
+                        <PageFooter onNext={onNext} nextLabel="探索词向量" />
+                    </Card>
+                </div>
+            );
+        };
+
+        const EmbeddingDemo = ({ onNext }) => {
+            return (
+                <div className="max-w-4xl mx-auto">
+                    <Card title="Step 2: 词向量 (Embedding) —— 万物皆数" icon={Library}>
+                        <div className="space-y-6">
+                            <p className="text-gray-300 leading-relaxed">计算机只认识数字，不认识文字。那它怎么理解“<b>苹果</b>”和“<b>香蕉</b>”很像，但和“<b>汽车</b>”不一样呢？<br/>答案是：<b>把每个词都变成空间里的一个坐标点（向量）。</b></p>
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <ConceptBox title="语义 = 距离" icon={Move3d} color="rose">
+                                    <p>在 AI 的世界里，两个词的意思越相近，它们在空间里的<b>距离就越近</b>（夹角越小）。</p>
+                                    <p className="mt-2 text-xs text-gray-400">比如：[国王] 和 [王后] 离得近；[猫] 和 [狗] 离得近。<br/>这就是为什么 AI 能做“类比推理”：<br/><b>国王 - 男人 + 女人 ≈ 王后</b></p>
+                                </ConceptBox>
+                                <ConceptBox title="维度 (Dimension)" icon={BarChart2} color="indigo">
+                                    <p>在这个演示里，我们只用了 X, Y, Z 三个维度（3D）。<br/>但在真实的 GPT-4 里，每个词可能有 <b>10,000+ 个维度</b>！</p>
+                                    <p className="mt-2 text-xs text-gray-400">每一个维度都代表某种特征（比如“是否有生命”、“是否是食物”、“是否是皇家”...）。</p>
+                                </ConceptBox>
+                            </div>
+                            <WordEmbeddingVisualizer />
+                        </div>
+                        <PageFooter onNext={onNext} nextLabel="连接成网" />
+                    </Card>
+                </div>
+            );
+        };
+
+        const NeuralNetDemo = ({ onNext }) => {
+            const layers = [
+                { id: 0, nodes: 3, color: "#3b82f6", label: "输入层" },
+                { id: 1, nodes: 4, color: "#a855f7", label: "隐藏层 1" },
+                { id: 2, nodes: 4, color: "#a855f7", label: "隐藏层 2" },
+                { id: 3, nodes: 2, color: "#22c55e", label: "输出层" } 
+            ];
+            const width = 800;
+            const height = 250;
+            const getNodePos = (layerIndex, nodeIndex, totalNodes) => {
+                const x = (width / (layers.length + 0.5)) * (layerIndex + 0.75);
+                const spacing = height / (totalNodes + 1);
+                const y = spacing * (nodeIndex + 1);
+                return { x, y };
+            };
+
+            return (
+                <div className="max-w-4xl mx-auto">
+                    <Card title="Step 3: 神经网络 (Neural Network) —— 集体的力量" icon={Network}>
+                        <div className="space-y-6">
+                            <p className="text-gray-300 leading-relaxed text-lg">把成千上万个神经元连起来，就变成了“公司体制”。</p>
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <ConceptBox title="深度学习的本质" icon={PenTool} color="purple">
+                                    <p>你可能会觉得 AI 很神秘，但本质上，它就是在做一个<b>巨大的“数学题”</b>。</p>
+                                    <p className="mt-2 text-white font-mono bg-black/30 p-2 rounded text-center">y = f(x)</p>
+                                    <p className="mt-2 text-xs"><b>所谓的“训练”或“学习”，就是在不断调整中间那亿万个“权重”参数，让这个函数算出来的结果越来越准。</b></p>
+                                </ConceptBox>
+                                <ConceptBox title="它们是怎么连接的？" icon={Network} color="green">
+                                    <p>注意看右边的图：每一层的<b>每一个</b>神经元，都和下一层的<b>所有</b>神经元相连。</p>
+                                    <p className="mt-2 text-white font-bold">这叫“全连接层” (Fully Connected Layer)</p>
+                                    <p className="mt-2 text-xs">这意味着没有任何信息被遗漏。上一层提取的所有特征，都会被下一层的每一个“主管”重新审视、加权、组合。这让网络能捕捉极其复杂的关系。</p>
+                                </ConceptBox>
+                            </div>
+                            <div className="w-full bg-gray-900 rounded-2xl relative overflow-hidden border border-gray-700 shadow-inner mt-6">
+                                <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full">
+                                    <defs>
+                                        <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.6" />
+                                            <stop offset="50%" stopColor="#a855f7" stopOpacity="0.8" />
+                                            <stop offset="100%" stopColor="#22c55e" stopOpacity="0.6" />
+                                        </linearGradient>
+                                    </defs>
+                                    {layers.map((layer, lIndex) => {
+                                        if (lIndex === layers.length - 1) return null;
+                                        const nextLayer = layers[lIndex + 1];
+                                        return Array.from({ length: layer.nodes }).map((_, nIndex) => {
+                                            const startPos = getNodePos(lIndex, nIndex, layer.nodes);
+                                            return Array.from({ length: nextLayer.nodes }).map((__, nextNIndex) => {
+                                                const endPos = getNodePos(lIndex + 1, nextNIndex, nextLayer.nodes);
+                                                return (
+                                                    <motion.path key={`link-${lIndex}-${nIndex}-${nextNIndex}`} d={`M ${startPos.x} ${startPos.y} L ${endPos.x} ${endPos.y}`} stroke="url(#lineGradient)" strokeWidth="1.5" initial={{ pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: [0.3, 0.8, 0.3] }} transition={{ duration: 3, repeat: Infinity, delay: Math.random() * 2 }} />
+                                                );
+                                            });
+                                        });
+                                    })}
+                                    {layers.map((layer, lIndex) => (
+                                        <g key={`layer-${lIndex}`}>
+                                            <text x={(width / (layers.length + 0.5)) * (lIndex + 0.75)} y={height - 10} textAnchor="middle" fill="#9ca3af" fontSize="14" fontWeight="bold" className="font-mono">{layer.label}</text>
+                                            {Array.from({ length: layer.nodes }).map((_, nIndex) => {
+                                                const pos = getNodePos(lIndex, nIndex, layer.nodes);
+                                                return (
+                                                    <g key={`node-${lIndex}-${nIndex}`}>
+                                                        <motion.circle cx={pos.x} cy={pos.y} r={8} fill={layer.color} stroke="#1f2937" strokeWidth="2" />
+                                                        <motion.circle cx={pos.x} cy={pos.y} r={12} fill={layer.color} initial={{ opacity: 0 }} animate={{ opacity: [0, 0.3, 0] }} transition={{ duration: 2, repeat: Infinity, delay: Math.random() }} />
+                                                    </g>
+                                                );
+                                            })}
+                                        </g>
+                                    ))}
+                                </svg>
+                            </div>
+                        </div>
+                        <PageFooter onNext={onNext} nextLabel="看懂图像 (CNN)" />
+                    </Card>
+                </div>
+            );
+        };
+
+        const CNNDemo = ({ onNext }) => {
+            const [step, setStep] = useState(0);
+            const inputSize = 6;
+            const kernelSize = 3;
+            const outputSize = inputSize - kernelSize + 1; // 4
+            const totalSteps = outputSize * outputSize;
+            const inputGrid = [
+                [0, 0, 1, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0]
+            ];
+            useEffect(() => {
+                const timer = setInterval(() => {
+                    setStep(s => (s + 1) % totalSteps);
+                }, 1000);
+                return () => clearInterval(timer);
+            }, []);
+            const currentY = Math.floor(step / outputSize);
+            const currentX = step % outputSize;
+            const isMatch = currentX === 1; 
+
+            return (
+                <div className="max-w-5xl mx-auto">
+                    <Card title="Step 4: CNN (卷积神经网络) —— 赋予机器眼睛" icon={Eye}>
+                        <div className="space-y-6">
+                            <ConceptBox title="卷积到底在'卷'什么？" icon={Grid} color="amber">
+                                <div className="flex flex-col md:flex-row gap-4">
+                                    <div className="flex-1">
+                                        <p className="mb-2"><b>1. 卷积核 (Kernel) = 特征模具：</b></p>
+                                        <p className="text-gray-400 text-xs mb-2">不用把 CNN 想得太复杂。中间那个黄色的 3x3 小方块，就是一个<b>“竖线检测器”</b>。它的任务就是去图片里找“哪儿有竖线”。</p>
+                                        <p className="mb-2"><b>2. 扫描 & 匹配：</b></p>
+                                        <p className="text-gray-400 text-xs">它像拿着放大镜一样，在图片上从左到右、从上到下移动。这叫<b>“滑动窗口”</b>。</p>
+                                    </div>
+                                    <div className="flex-1 border-l border-amber-500/30 pl-4">
+                                        <p className="mb-2"><b>3. 计算原理 (点乘)：</b></p>
+                                        <p className="text-gray-400 text-xs">
+                                            当“检测器”遇到了真正的竖线（形状吻合），算出来的分值就很高（亮色）；
+                                            <br/>如果遇到了横线或空白（形状不符），分值就很低（暗色）。
+                                            <br/><b>最终生成的“特征图”，就是一张告诉机器“哪里有竖线”的藏宝图。</b>
+                                        </p>
+                                    </div>
+                                </div>
+                            </ConceptBox>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center justify-items-center bg-gray-900/50 p-8 rounded-xl border border-gray-700 relative overflow-hidden">
+                                <div className="flex flex-col items-center gap-2 z-10">
+                                    <span className="text-sm text-gray-400 font-mono">原始图片 (Input)</span>
+                                    <div className="relative grid grid-cols-6 gap-1 p-2 bg-gray-900 border border-gray-600 rounded-lg">
+                                        {inputGrid.flat().map((val, i) => {
+                                            const r = Math.floor(i / 6);
+                                            const c = i % 6;
+                                            const inWindow = r >= currentY && r < currentY + kernelSize && c >= currentX && c < currentX + kernelSize;
+                                            return (
+                                                <div key={i} className={`w-6 h-6 rounded-sm transition-all duration-200 ${val ? 'bg-gray-200' : 'bg-gray-800'} ${inWindow ? 'ring-2 ring-yellow-500 scale-90' : ''}`}></div>
+                                            );
+                                        })}
+                                        <motion.div 
+                                            className="absolute border-2 border-yellow-500 rounded shadow-[0_0_15px_#eab308] pointer-events-none"
+                                            animate={{ 
+                                                left: currentX * 28 + 8, 
+                                                top: currentY * 28 + 8,
+                                                width: 3 * 28 - 4,
+                                                height: 3 * 28 - 4
+                                            }}
+                                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-center justify-center z-10">
+                                    <motion.div className="mb-4" animate={{ scale: isMatch ? 1.2 : 1 }}>
+                                        <ArrowRight size={32} className={isMatch ? "text-yellow-500" : "text-gray-600"} />
+                                    </motion.div>
+                                    <div className="bg-yellow-900/20 border border-yellow-500/50 p-3 rounded-lg flex flex-col items-center">
+                                        <span className="text-xs text-yellow-500 font-bold mb-2">竖线检测器 (Kernel)</span>
+                                        <div className="grid grid-cols-3 gap-1">
+                                            {[-1, 2, -1, -1, 2, -1, -1, 2, -1].map((v, i) => (
+                                                <div key={i} className={`w-5 h-5 flex items-center justify-center text-[8px] font-mono rounded-sm ${v > 0 ? 'bg-yellow-500 text-black' : 'bg-gray-800 text-gray-500'}`}>{v}</div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 text-center h-8">
+                                        <AnimatePresence mode="wait">
+                                            {isMatch ? (
+                                                <motion.span key="match" initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} exit={{opacity:0}} className="text-green-400 text-sm font-bold block">匹配成功! <br/> <span className="text-xs opacity-70">(High Value)</span></motion.span>
+                                            ) : (
+                                                <motion.span key="no-match" initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} exit={{opacity:0}} className="text-gray-500 text-xs block">...扫描中... <br/> (Low Value)</motion.span>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-center gap-2 z-10">
+                                    <span className="text-sm text-gray-400 font-mono">特征图 (Feature Map)</span>
+                                    <div className="grid grid-cols-4 gap-1 p-2 bg-gray-900 border border-gray-600 rounded-lg">
+                                        {Array.from({ length: 16 }).map((_, i) => {
+                                            const r = Math.floor(i / 4);
+                                            const c = i % 4;
+                                            const isTarget = r === currentY && c === currentX;
+                                            const isActivePixel = c === 1; 
+                                            
+                                            return (
+                                                <motion.div 
+                                                    key={i}
+                                                    className={`w-8 h-8 rounded-sm flex items-center justify-center text-xs font-bold border border-gray-700/50 transition-colors duration-300
+                                                        ${isActivePixel ? 'bg-green-900/50 text-green-400' : 'bg-gray-950 text-gray-800'}
+                                                        ${isTarget ? 'ring-2 ring-white z-20' : ''}
+                                                    `}
+                                                >
+                                                    {isActivePixel ? (isTarget ? "High" : "1") : "0"}
+                                                </motion.div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                                <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20">
+                                    <line x1="30%" y1="50%" x2="40%" y2="50%" stroke="white" strokeDasharray="4" />
+                                    <line x1="60%" y1="50%" x2="70%" y2="50%" stroke="white" strokeDasharray="4" />
+                                </svg>
+                            </div>
+                        </div>
+                        <PageFooter onNext={onNext} nextLabel="学会记忆 (RNN)" />
+                    </Card>
+                </div>
+            );
+        };
+
+        const RNNDemo = ({ onNext }) => {
+            const [step, setStep] = useState(0);
+            const [isProcessing, setIsProcessing] = useState(true);
+            const sentence = ["我", "觉得", "今天", "很", "开心"];
+            const memories = [
+                "空 (Initial State)",
+                "主语:我",
+                "观点:觉得",
+                "时间:今天",
+                "程度:很",
+                "情绪:开心"
+            ];
+            useEffect(() => {
+                let interval;
+                if (isProcessing) {
+                    interval = setInterval(() => {
+                        setStep(s => (s + 1) % sentence.length);
+                    }, 2000);
+                }
+                return () => clearInterval(interval);
+            }, [isProcessing]);
+            const currentWord = sentence[step];
+            const prevMemory = memories[step];
+            const nextMemory = memories[step + 1];
+
+            return (
+                <div className="max-w-5xl mx-auto">
+                    <Card title="Step 5: RNN (循环神经网络) —— 拥有短期记忆" icon={Activity}>
+                        <div className="space-y-8">
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <ConceptBox title="为什么需要记忆？" icon={RefreshCw} color="purple">
+                                    <p className="mb-2">CNN 像看幻灯片，看完一张忘一张。但理解语言需要<b>上下文</b>。</p>
+                                    <p className="text-xs text-gray-400">比如："我饿了，我想吃___"。<br/>如果不知道前面说了"饿了"，就猜不出后面是"饭"。RNN 就是为了解决这个问题而生的。</p>
+                                </ConceptBox>
+                                <ConceptBox title="循环处理机制" icon={ArrowLeftRight} color="indigo">
+                                    <p className="mb-2">RNN 的核心是一个<b>循环 (Loop)</b>。</p>
+                                    <div className="text-xs text-gray-400 bg-black/30 p-2 rounded font-mono">
+                                        新记忆 = f(当前输入 + 旧记忆)
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-2">它把“上一步算出来的结果”存起来，传给下一步用。就像传声筒游戏。</p>
+                                </ConceptBox>
+                            </div>
+                            <div className="bg-gray-900/50 p-8 pb-24 rounded-xl border border-gray-700 relative overflow-hidden flex flex-col items-center">
+                                <div className="flex gap-2 mb-12 flex-wrap justify-center">
+                                    {sentence.map((word, i) => (
+                                        <div key={i} className={`px-3 py-2 rounded-lg border transition-all duration-300 ${i === step ? 'bg-purple-600 text-white border-purple-400 scale-110 shadow-[0_0_15px_#9333ea]' : 'bg-gray-800 text-gray-500 border-gray-700'}`}>
+                                            {word}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="relative w-full flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8">
+                                    <div className="flex flex-col items-center gap-2 z-10 w-32 shrink-0">
+                                        <span className="text-xs text-gray-400 uppercase tracking-wider">上一步记忆 (h<sub>t-1</sub>)</span>
+                                        <motion.div 
+                                            key={`prev-${step}`}
+                                            initial={{ x: -20, opacity: 0 }}
+                                            animate={{ x: 0, opacity: 1 }}
+                                            className="w-full bg-blue-900/40 border border-blue-500/50 p-3 rounded-lg text-center text-sm text-blue-200 h-16 flex items-center justify-center shadow-lg"
+                                        >
+                                            {prevMemory}
+                                        </motion.div>
+                                    </div>
+                                    <div className="hidden md:block text-blue-500"><ArrowRight size={32} /></div>
+                                    <div className="relative z-20 flex flex-col items-center justify-center shrink-0">
+                                        <div className="absolute -bottom-28 flex flex-col items-center w-40">
+                                            <motion.div 
+                                                key={`word-${step}`}
+                                                initial={{ y: 20, opacity: 0 }}
+                                                animate={{ y: 0, opacity: 1 }}
+                                                className="mb-1 text-purple-400 font-bold text-lg"
+                                            >
+                                                "{currentWord}"
+                                            </motion.div>
+                                            <ArrowRight className="-rotate-90 text-purple-500" size={24} />
+                                            <span className="text-xs text-purple-500 mt-1">当前输入 (x<sub>t</sub>)</span>
+                                        </div>
+                                        <div className="w-24 h-24 rounded-full bg-gray-800 border-4 border-purple-500 flex items-center justify-center shadow-[0_0_30px_rgba(168,85,247,0.4)] relative z-20">
+                                            <RefreshCw className="text-purple-400 animate-spin-slow" size={32} />
+                                            <div className="absolute -inset-1 rounded-full border border-purple-500/30 animate-ping opacity-20"></div>
+                                        </div>
+                                        <span className="text-xs text-gray-400 mt-2 font-mono bg-black/40 px-2 rounded">RNN Cell</span>
+                                    </div>
+                                    <div className="hidden md:block text-green-500"><ArrowRight size={32} /></div>
+                                    <div className="flex flex-col items-center gap-2 z-10 w-32 shrink-0">
+                                        <span className="text-xs text-gray-400 uppercase tracking-wider">新记忆 (h<sub>t</sub>)</span>
+                                        <motion.div 
+                                            key={`next-${step}`}
+                                            initial={{ scale: 0.9, opacity: 0 }}
+                                            animate={{ scale: 1, opacity: 1 }}
+                                            className="w-full bg-green-900/40 border border-green-500/50 p-3 rounded-lg text-center text-sm text-green-200 h-16 flex items-center justify-center shadow-lg"
+                                        >
+                                            {nextMemory}
+                                        </motion.div>
+                                    </div>
+                                </div>
+                                <div className="absolute bottom-4 right-4 text-xs text-gray-500 flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></div>
+                                    正在处理第 {step + 1} 个时间步
+                                </div>
+                            </div>
+                        </div>
+                        <PageFooter onNext={onNext} nextLabel="终极形态 (Transformer)" />
+                    </Card>
+                </div>
+            );
+        };
+
+        const TransformerDemo = ({ onNext }) => {
+            const [hoveredWord, setHoveredWord] = useState(null);
+            const words = [
+                { id: 0, text: "苹果" },
+                { id: 1, text: "不仅" },
+                { id: 2, text: "是" },
+                { id: 3, text: "一种" },
+                { id: 4, text: "水果" },
+                { id: 5, text: "，" },
+                { id: 6, text: "还是" },
+                { id: 7, text: "一家" },
+                { id: 8, text: "伟大的" },
+                { id: 9, text: "公司" }
+            ];
+            const getConnections = (id) => {
+                if (id === 0) return [4, 9]; 
+                if (id === 4) return [0];    
+                if (id === 9) return [0, 8]; 
+                if (id === 8) return [9];    
+                return [];
+            };
+
+            return (
+                <div className="max-w-4xl mx-auto">
+                    <Card title="Step 6: Transformer —— 现代 AI 的大脑" icon={Cpu} className="border-purple-500/30 bg-gradient-to-br from-gray-900 via-gray-900 to-purple-900/20">
+                        <div className="space-y-6">
+                            <div className="p-4 bg-gray-950 rounded-xl border border-gray-800 text-center space-y-2">
+                                <h4 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">Attention Is All You Need</h4>
+                                <p className="text-gray-400 text-sm">
+                                    这是 ChatGPT 等大模型的基石。它采用了<b>“自注意力机制” (Self-Attention)</b>。
+                                </p>
+                            </div>
+                            <ConceptBox title="核心机制：Q, K, V 是什么？" icon={Search} color="purple">
+                                <p className="mb-3">
+                                    Transformer 每次处理一个词时，都会问：“我应该关注句子里其他的哪些词？”<br/>
+                                    为了解决这个问题，它把每个词都变成了三个向量：
+                                </p>
+                                <div className="grid grid-cols-3 gap-4 text-center">
+                                    <div className="bg-purple-900/40 p-3 rounded-lg border border-purple-500/30">
+                                        <div className="text-purple-300 font-bold mb-1 flex justify-center"><Search size={16} className="mr-1"/> Query (Q)</div>
+                                        <div className="text-xs text-gray-300"><b>“查询”</b><br/>我想找什么？<br/>(比如拿着"苹果"去搜)</div>
+                                    </div>
+                                    <div className="bg-blue-900/40 p-3 rounded-lg border border-blue-500/30">
+                                        <div className="text-blue-300 font-bold mb-1 flex justify-center"><Key size={16} className="mr-1"/> Key (K)</div>
+                                        <div className="text-xs text-gray-300"><b>“索引”</b><br/>这个词有什么特征？<br/>(相当于书的标签)</div>
+                                    </div>
+                                    <div className="bg-green-900/40 p-3 rounded-lg border border-green-500/30">
+                                        <div className="text-green-300 font-bold mb-1 flex justify-center"><Database size={16} className="mr-1"/> Value (V)</div>
+                                        <div className="text-xs text-gray-300"><b>“内容”</b><br/>这个词的实际含义<br/>(书里的内容)</div>
+                                    </div>
+                                </div>
+                                <p className="mt-3 text-xs text-gray-400 bg-black/20 p-2 rounded">
+                                    <b>流程：</b> Q 和 K 匹配算出“相关性分数” (Attention Score)，然后根据分数去提取 V。
+                                    <br/>例如：“苹果”(Q) 发现 “水果”(K) 和 “公司”(K) 的匹配度都很高，所以它同时吸收了这两种含义。
+                                </p>
+                            </ConceptBox>
+                            <div className="bg-gray-900/80 p-4 rounded-lg border border-gray-700 flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400">
+                                    <Eye size={20} />
+                                </div>
+                                <p className="text-sm text-gray-300">
+                                    <span className="text-purple-400 font-bold">试一试：</span> 
+                                    把鼠标悬停在 <b className="text-white border-b border-white/50">"苹果"</b> 或 <b className="text-white border-b border-white/50">"公司"</b> 上。
+                                    看看 Attention 机制是如何工作的。
+                                </p>
+                            </div>
+                            <div className="relative py-12 px-4 bg-black/40 rounded-xl border border-gray-800 flex flex-wrap gap-x-3 gap-y-6 justify-center min-h-[200px] content-center">
+                                {words.map((w) => {
+                                    const isRelated = hoveredWord !== null && getConnections(hoveredWord).includes(w.id);
+                                    const isHovered = hoveredWord === w.id;
+                                    return (
+                                        <div key={w.id} className="relative group">
+                                            <motion.span
+                                                onMouseEnter={() => setHoveredWord(w.id)}
+                                                onMouseLeave={() => setHoveredWord(null)}
+                                                className={`relative px-4 py-3 rounded-lg cursor-pointer transition-all duration-300 select-none text-lg ${
+                                                    isHovered ? 'bg-purple-600 text-white scale-110 z-20 shadow-[0_0_20px_#9333ea]' :
+                                                    isRelated ? 'bg-blue-900/60 text-blue-200 border border-blue-500/50 scale-105 z-10' :
+                                                    'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                                                }`}
+                                            >
+                                                {w.text}
+                                            </motion.span>
+                                            {isRelated && (
+                                                <motion.div 
+                                                    layoutId={`line-${w.id}`}
+                                                    initial={{ opacity: 0, scale: 0 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    className="absolute -top-9 left-1/2 -translate-x-1/2 text-[10px] text-cyan-300 font-mono whitespace-nowrap bg-gray-900/90 px-2 py-0.5 rounded border border-cyan-500/30 z-30 pointer-events-none"
+                                                >
+                                                    Match(Q,K)
+                                                </motion.div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                        <PageFooter onNext={onNext} nextLabel="LLM 思考演示" />
+                    </Card>
+                </div>
+            );
+        };
+
+        // --- 模块 6: LLM 全流程演示 (Refactored from GeminiProcessDemo) ---
+        const LLMProcessDemo = ({ onNext }) => {
+            // Steps: 0:Start, 1:Tokenization, 2:Embedding+Pos, 3:Self-Attention, 4:FeedForward, 5:Decoding, 6:Output, 7:Done
+            const [step, setStep] = useState(0); 
+            const [outputWord, setOutputWord] = useState("");
+
+            const promptText = "天空是";
+            const tokens = ["天", "空", "是"];
+            const vectors = [
+                { h: 40, c: "bg-blue-500" }, 
+                { h: 60, c: "bg-purple-500" }, 
+                { h: 30, c: "bg-green-500" }
+            ];
+            const probabilities = [
+                { word: "蓝色的", prob: 85, color: "bg-green-500" },
+                { word: "灰色的", prob: 10, color: "bg-gray-500" },
+                { word: "红色的", prob: 5, color: "bg-red-500" }
+            ];
+
+            const totalSteps = 7; 
+
+            const handleNextStep = () => {
+                if (step < totalSteps) {
+                    const next = step + 1;
+                    setStep(next);
+                    if (next === totalSteps) {
+                        setOutputWord("蓝色的");
+                    }
+                } else {
+                    setStep(0);
+                    setOutputWord("");
+                }
+            };
+
+            return (
+                <div className="max-w-4xl mx-auto">
+                    <Card title="实战演示: LLM (大模型) 生成全流程" icon={Sparkles} className="border-indigo-500/30 bg-gradient-to-br from-gray-900 to-indigo-950/30">
+                        <div className="space-y-8">
+                            <div className="flex justify-between items-center bg-gray-900/50 p-4 rounded-lg border border-gray-700">
+                                <div>
+                                    <h4 className="font-bold text-white text-lg">当前任务: 续写句子</h4>
+                                    <p className="text-gray-400 text-sm">
+                                        输入: "{promptText}" <span className="text-gray-600">--&gt; 预测下一个词</span>
+                                    </p>
+                                </div>
+                                <button 
+                                    onClick={handleNextStep}
+                                    className={`px-6 py-2 rounded-full font-bold transition-all shadow-lg flex items-center gap-2 ${step === totalSteps ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white'}`}
+                                >
+                                    {step === 0 ? "开始思考" : step === totalSteps ? "再次运行" : "下一步 ->"}
+                                </button>
+                            </div>
+
+                            <div className="relative h-[360px] bg-gray-950 rounded-2xl border border-gray-800 overflow-hidden flex flex-col items-center justify-center p-8">
+                                {/* Step 0: Initial */}
+                                {step === 0 && (
+                                    <motion.div initial={{opacity:0}} animate={{opacity:1}} className="text-center">
+                                        <div className="text-2xl font-bold text-white mb-2">{promptText}</div>
+                                        <div className="text-gray-500 text-sm">等待输入处理...</div>
+                                    </motion.div>
+                                )}
+
+                                {/* Step 1: Tokenization */}
+                                {step >= 1 && (
+                                    <div className={`absolute top-8 flex gap-2 transition-all duration-500 ${step > 1 ? 'scale-90 opacity-80' : 'scale-100'}`}>
+                                        {tokens.map((t, i) => (
+                                            <motion.div 
+                                                key={`tok-${i}`}
+                                                initial={{ y: 20, opacity: 0 }}
+                                                animate={{ y: 0, opacity: 1 }}
+                                                transition={{ delay: i * 0.1 }}
+                                                className="bg-gray-800 border border-gray-600 px-3 py-2 rounded text-white font-mono text-sm relative"
+                                            >
+                                                {t}
+                                                <div className="text-[10px] text-gray-500 mt-1 text-center">{100 + i}</div>
+                                            </motion.div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Step 2: Embedding + Positional Encoding */}
+                                {step >= 2 && (
+                                    <div className={`absolute top-28 flex gap-4 transition-all duration-500 ${step > 2 ? 'opacity-60 blur-[1px]' : 'opacity-100'}`}>
+                                        {tokens.map((_, i) => (
+                                            <div key={`vec-${i}`} className="flex flex-col items-center">
+                                                <motion.div 
+                                                    initial={{ height: 0 }}
+                                                    animate={{ height: vectors[i].h }}
+                                                    className={`w-8 ${vectors[i].c} rounded-t shadow-[0_0_15px_rgba(255,255,255,0.3)] relative overflow-hidden`}
+                                                >
+                                                    {/* Positional encoding wave effect */}
+                                                    <div className="absolute inset-0 opacity-30 bg-[linear-gradient(45deg,transparent_25%,#fff_50%,transparent_75%)] bg-[length:10px_10px]" />
+                                                </motion.div>
+                                                {step === 2 && (
+                                                    <motion.div initial={{opacity:0}} animate={{opacity:1}} className="text-[8px] text-yellow-500 mt-1 font-mono">+Pos</motion.div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                
+                                {/* Step 3: Self-Attention */}
+                                {step >= 3 && (
+                                    <motion.div 
+                                        initial={{ opacity: 0 }} 
+                                        animate={{ opacity: step >= 3 && step < 6 ? 1 : 0.1 }}
+                                        className={`absolute top-48 w-64 h-20 bg-purple-900/20 border border-purple-500/50 rounded-lg flex items-center justify-center backdrop-blur-sm transition-all`}
+                                    >
+                                        <div className="text-purple-300 font-bold flex flex-col items-center">
+                                            <GitMerge size={20} className="mb-1" />
+                                            <span className="text-xs tracking-widest">SELF-ATTENTION</span>
+                                        </div>
+                                        {/* Visualization of attention lines */}
+                                        {step === 3 && (
+                                            <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
+                                                <motion.path d="M 32 -20 Q 96 -50 160 -20" fill="none" stroke="#a855f7" strokeWidth="2" initial={{pathLength:0}} animate={{pathLength:1}} />
+                                                <motion.path d="M 96 -20 Q 128 -40 160 -20" fill="none" stroke="#a855f7" strokeWidth="2" strokeDasharray="4 2" initial={{pathLength:0}} animate={{pathLength:1}} transition={{delay:0.2}} />
+                                            </svg>
+                                        )}
+                                    </motion.div>
+                                )}
+
+                                {/* Step 4: Feed Forward */}
+                                {step >= 4 && (
+                                    <motion.div 
+                                        initial={{ opacity: 0 }} 
+                                        animate={{ opacity: step >= 4 && step < 6 ? 1 : 0.1 }}
+                                        className={`absolute top-[280px] w-64 h-16 bg-blue-900/20 border border-blue-500/50 rounded-lg flex items-center justify-center backdrop-blur-sm transition-all`}
+                                    >
+                                        <div className="text-blue-300 font-bold flex flex-col items-center">
+                                            <Layers size={20} className="mb-1" />
+                                            <span className="text-xs tracking-widest">FEED FORWARD</span>
+                                        </div>
+                                        {/* Activation flash */}
+                                        {step === 4 && (
+                                            <motion.div 
+                                                className="absolute inset-0 bg-blue-500/20"
+                                                animate={{ opacity: [0, 1, 0] }}
+                                                transition={{ repeat: Infinity, duration: 1 }}
+                                            />
+                                        )}
+                                    </motion.div>
+                                )}
+
+                                {/* Step 5: Decoding/Logits */}
+                                {step >= 5 && (
+                                    <motion.div 
+                                        initial={{ y: 20, opacity: 0 }}
+                                        animate={{ y: 0, opacity: 1 }}
+                                        className={`absolute bottom-8 flex gap-6 items-end transition-all duration-500 ${step === totalSteps ? 'opacity-30 blur-[1px]' : 'opacity-100'}`}
+                                    >
+                                        {probabilities.map((item, i) => (
+                                            <div key={`prob-${i}`} className="flex flex-col items-center gap-1">
+                                                <span className="text-[10px] text-gray-400">{item.prob}%</span>
+                                                <motion.div 
+                                                    initial={{ height: 0 }}
+                                                    animate={{ height: item.prob / 2 }} // Scale down for display
+                                                    className={`w-10 ${item.color} rounded-t-sm opacity-80`}
+                                                />
+                                                <span className="text-[10px] text-white">{item.word}</span>
+                                            </div>
+                                        ))}
+                                    </motion.div>
+                                )}
+                                
+                                {/* Step 6/7: Output */}
+                                {step === totalSteps && (
+                                    <motion.div 
+                                        initial={{ scale: 0, rotate: -10 }}
+                                        animate={{ scale: 1.5, rotate: 0 }}
+                                        className="absolute z-30 bg-green-600 text-white px-6 py-2 rounded-full font-bold shadow-[0_0_30px_#22c55e]"
+                                    >
+                                        {outputWord}
+                                    </motion.div>
+                                )}
+                            </div>
+
+                            <div className="bg-gray-900 p-4 rounded-lg text-sm text-gray-400 min-h-[80px] flex items-center">
+                                <Info size={16} className="mr-3 text-indigo-400 flex-shrink-0" />
+                                <AnimatePresence mode="wait">
+                                    {step === 0 && <motion.span key="0" initial={{opacity:0}} animate={{opacity:1}}>准备就绪。点击 <b>“开始思考”</b> 按钮，观察 LLM 的内部生成过程。</motion.span>}
+                                    {step === 1 && <motion.span key="1" initial={{opacity:0}} animate={{opacity:1}}>1. 分词 (Tokenization): 将输入文本切分为 Token，这是模型能理解的最小单位。</motion.span>}
+                                    {step === 2 && <motion.span key="2" initial={{opacity:0}} animate={{opacity:1}}>2. 嵌入 (Embedding): 查表将 Token 转为向量，并叠加<b>位置编码 (Positional Encoding)</b> 以保留语序信息。</motion.span>}
+                                    {step === 3 && <motion.span key="3" initial={{opacity:0}} animate={{opacity:1}}>3. 自注意力 (Self-Attention): 计算 Token 间的关联。比如“是”会关注前面的“天空”，捕捉上下文语义。</motion.span>}
+                                    {step === 4 && <motion.span key="4" initial={{opacity:0}} animate={{opacity:1}}>4. 前馈网络 (Feed Forward): 将注意力提取的信息进行非线性变换和整合 (类似于大脑的推理)。</motion.span>}
+                                    {step === 5 && <motion.span key="5" initial={{opacity:0}} animate={{opacity:1}}>5. 概率分布 (Logits): 经过 Softmax 层，计算词表中每个词成为下一个词的概率。</motion.span>}
+                                    {step === 6 && <motion.span key="6" initial={{opacity:0}} animate={{opacity:1}}>6. 采样输出 (Sampling): 根据概率策略 (如 Greedy 或 Top-K) 选择最终的词。</motion.span>}
+                                    {step === 7 && <motion.span key="7" initial={{opacity:0}} animate={{opacity:1}}>完成生成: 输出 "{outputWord}"，并将其加入输入，准备生成下一个词。</motion.span>}
+                                </AnimatePresence>
+                            </div>
+                        </div>
+                        
+                        <PageFooter onNext={onNext} nextLabel="大模型推荐" />
+                    </Card>
+                </div>
+            );
+        };
+
+        const ModelRecommendationDemo = ({ onNext }) => {
+            const models = {
+                foreign: [
+                    { 
+                        name: "Gemini", 
+                        desc: "免费，上下文极长，多模态能力世界第一，文学创作能力强，编码能力优秀。",
+                        icon: IconGoogle, 
+                        color: "text-blue-400",
+                        bg: "bg-blue-900/20",
+                        border: "border-blue-500/30"
+                    },
+                    { 
+                        name: "GPT", 
+                        desc: "全能战士，适合处理通用任务，处理复杂逻辑问题最强。",
+                        icon: IconOpenAI, 
+                        color: "text-green-400",
+                        bg: "bg-green-900/20",
+                        border: "border-green-500/30"
+                    },
+                    { 
+                        name: "Grok", 
+                        desc: "实时搜索能力强，风格幽默，审查较宽松。",
+                        icon: IconX,
+                        color: "text-white",
+                        bg: "bg-gray-800",
+                        border: "border-gray-600"
+                    },
+                    { 
+                        name: "Claude", 
+                        desc: "目前的编码王者，写代码首选，逻辑细腻，但是其他方面稍微逊色。",
+                        icon: Scroll, 
+                        color: "text-amber-400",
+                        bg: "bg-amber-900/20",
+                        border: "border-amber-500/30"
+                    }
+                ],
+                domestic: [
+                    { 
+                        name: "DeepSeek", 
+                        desc: "开源领头羊，API 价格极其便宜，性价比之王。",
+                        icon: Waves, 
+                        color: "text-blue-400",
+                        bg: "bg-blue-900/20",
+                        border: "border-blue-500/30"
+                    },
+                    { 
+                        name: "Kimi", 
+                        desc: "网络搜索能力强，DeepResearch 功能非常实用，并且也是开源的。",
+                        icon: Moon, 
+                        color: "text-cyan-400",
+                        bg: "bg-cyan-900/20",
+                        border: "border-cyan-500/30"
+                    },
+                    { 
+                        name: "豆包 (Doubao)", 
+                        desc: "多模态能力（语音/视频）出众，适合日常对话，但是智商稍低。",
+                        icon: MessageCircle, 
+                        color: "text-emerald-400",
+                        bg: "bg-emerald-900/20",
+                        border: "border-emerald-500/30"
+                    },
+                    { 
+                        name: "通义千问 (Qwen)", 
+                        desc: "开源模型库非常丰富，小参数模型性能强悍。",
+                        icon: Box, 
+                        color: "text-violet-400",
+                        bg: "bg-violet-900/20",
+                        border: "border-violet-500/30"
+                    }
+                ]
+            };
+
+            return (
+                <div className="max-w-5xl mx-auto">
+                    <Card title="最终章：主流大模型推荐指南" icon={Star}>
+                        <div className="grid md:grid-cols-2 gap-8">
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Globe className="text-blue-400" size={20} />
+                                    <h3 className="text-lg font-bold text-gray-200">国际梯队 (需魔法)</h3>
+                                </div>
+                                {models.foreign.map((m, i) => (
+                                    <motion.div 
+                                        key={m.name}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: i * 0.1 }}
+                                        className={`flex items-start gap-4 p-4 rounded-xl border ${m.bg} ${m.border} hover:scale-[1.02] transition-transform`}
+                                    >
+                                        <div className={`mt-1 p-2 rounded-lg bg-black/20 ${m.color}`}>
+                                            <m.icon className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <h4 className={`font-bold text-lg ${m.color}`}>{m.name}</h4>
+                                            <p className="text-sm text-gray-300 leading-relaxed mt-1">{m.desc}</p>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <div className="p-1 bg-red-900/30 rounded"><div className="w-4 h-3 bg-red-500 rounded-[1px]"></div></div>
+                                    <h3 className="text-lg font-bold text-gray-200">国内梯队 (直连)</h3>
+                                </div>
+                                {models.domestic.map((m, i) => (
+                                    <motion.div 
+                                        key={m.name}
+                                        initial={{ opacity: 0, x: 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: i * 0.1 + 0.2 }}
+                                        className={`flex items-start gap-4 p-4 rounded-xl border ${m.bg} ${m.border} hover:scale-[1.02] transition-transform`}
+                                    >
+                                        <div className={`mt-1 p-2 rounded-lg bg-black/20 ${m.color}`}>
+                                            {typeof m.icon === 'function' ? <m.icon className="w-6 h-6" /> : <m.icon size={24} />}
+                                        </div>
+                                        <div>
+                                            <h4 className={`font-bold text-lg ${m.color}`}>{m.name}</h4>
+                                            <p className="text-sm text-gray-300 leading-relaxed mt-1">{m.desc}</p>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="mt-10 pt-8 border-t border-gray-800 text-center">
+                            <p className="text-gray-400 mb-6">
+                                选择模型，重要的是<b>根据自己的需要和钱包去做取舍</b>。<br/>
+                            </p>
+                            <button onClick={() => window.location.reload()} className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-full font-bold shadow-lg transition-all flex items-center gap-2 mx-auto">
+                                <Sparkles size={18} /> 再看一遍旅程
+                            </button>
+                        </div>
+                    </Card>
+                </div>
+            );
+        };
+
+        // --- App ---
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('neuron');
+            const tabs = [
+                { id: 'neuron', label: '神经元', icon: Zap },
+                { id: 'embedding', label: '词向量', icon: Library },
+                { id: 'net', label: '神经网络', icon: Network },
+                { id: 'cnn', label: 'CNN 视觉', icon: Eye },
+                { id: 'rnn', label: 'RNN 记忆', icon: Activity },
+                { id: 'transformer', label: 'Transformer', icon: Cpu },
+                { id: 'gemini', label: 'LLM 实战', icon: Sparkles }, // Updated label
+                { id: 'recommend', label: '模型推荐', icon: ThumbsUp }, 
+            ];
+            const handleNext = (currentId) => {
+                const currentIndex = tabs.findIndex(t => t.id === currentId);
+                if (currentIndex < tabs.length - 1) {
+                    setActiveTab(tabs[currentIndex + 1].id);
+                    window.scrollTo(0, 0);
+                } else {
+                    setActiveTab('neuron');
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-[#0f1117] text-gray-100 font-sans selection:bg-blue-500/30 flex flex-col">
+                    <nav className="sticky top-0 z-50 bg-[#0f1117]/90 backdrop-blur-lg border-b border-gray-800 shadow-2xl">
+                        <div className="max-w-6xl mx-auto px-4">
+                            <div className="flex items-center justify-between h-16">
+                                <div className="flex items-center gap-2 mr-8 shrink-0">
+                                    <div className="bg-gradient-to-br from-blue-500 to-purple-600 p-1.5 rounded-lg">
+                                        <Cpu size={20} className="text-white" />
+                                    </div>
+                                    <span className="font-bold text-lg tracking-tight hidden md:block">AI Principles</span>
+                                </div>
+                                <div className="flex-1 overflow-x-auto no-scrollbar min-w-0">
+                                    <div className="flex items-center gap-1 md:gap-2 pr-6">
+                                        {tabs.map((tab) => {
+                                            const isActive = activeTab === tab.id;
+                                            const Icon = tab.icon;
+                                            return (
+                                                <button
+                                                    key={tab.id}
+                                                    onClick={() => setActiveTab(tab.id)}
+                                                    className={`flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                                                        isActive 
+                                                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' 
+                                                            : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                                                    }`}
+                                                >
+                                                    <Icon size={16} />
+                                                    {tab.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </nav>
+
+                    <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8 md:py-12 relative">
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={activeTab}
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -20 }}
+                                transition={{ duration: 0.3 }}
+                                className="h-full"
+                            >
+                                {activeTab === 'neuron' && <NeuronDemo onNext={() => handleNext('neuron')} />}
+                                {activeTab === 'embedding' && <EmbeddingDemo onNext={() => handleNext('embedding')} />}
+                                {activeTab === 'net' && <NeuralNetDemo onNext={() => handleNext('net')} />}
+                                {activeTab === 'cnn' && <CNNDemo onNext={() => handleNext('cnn')} />}
+                                {activeTab === 'rnn' && <RNNDemo onNext={() => handleNext('rnn')} />}
+                                {activeTab === 'transformer' && <TransformerDemo onNext={() => handleNext('transformer')} />}
+                                {activeTab === 'gemini' && <LLMProcessDemo onNext={() => handleNext('gemini')} />}
+                                {activeTab === 'recommend' && <ModelRecommendationDemo onNext={() => handleNext('recommend')} />}
+                            </motion.div>
+                        </AnimatePresence>
+                    </main>
+                    
+                    <footer className="border-t border-gray-800 py-6 text-center text-gray-600 text-sm">
+                        <p>AI 原理互动指南 · Hardware &gt; OS &gt; Network &gt; <b>Intelligence</b></p>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

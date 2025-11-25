@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Windows 进阶指南：GUI 之下 (完整修复版)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            font-family: 'Noto Sans SC', sans-serif;
+            overflow: hidden;
+        }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* 侧边栏选中态 */
+        .nav-item.active {
+            background: rgba(56, 189, 248, 0.1);
+            border-left: 4px solid #38bdf8;
+            color: #38bdf8;
+        }
+
+        /* 模拟终端光标 */
+        .cursor-blink {
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+        /* Windows 窗口风格滚动条 */
+        .win-scroll::-webkit-scrollbar { width: 12px; }
+        .win-scroll::-webkit-scrollbar-track { background: #2d2d2d; border-left: 1px solid #3e3e3e; }
+        .win-scroll::-webkit-scrollbar-thumb { background: #666; border: 2px solid #2d2d2d; }
+        .win-scroll::-webkit-scrollbar-thumb:hover { background: #888; }
+
+        /* 任务管理器专用动画 */
+        @keyframes bounce-short {
+            0%, 100% { transform: translate(-50%, -50%); }
+            50% { transform: translate(-50%, -60%); }
+        }
+        .animate-hint {
+            animation: bounce-short 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- 1. 终端模拟器 (CMD vs PowerShell) ---
+        const TerminalSection = () => {
+            const [mode, setMode] = useState('cmd');
+            const [output, setOutput] = useState([
+                { text: "Microsoft Windows [版本 10.0.19045.3693]", type: 'info' },
+                { text: "(c) Microsoft Corporation。保留所有权利。", type: 'info' },
+                { text: "", type: 'empty' }
+            ]);
+
+            const runCommand = (cmdText) => {
+                setOutput(prev => [...prev, { text: `C:\\Users\\Admin> ${cmdText}`, type: 'command' }]);
+                
+                setTimeout(() => {
+                    if (cmdText === 'ping 8.8.8.8') {
+                        const responses = [
+                            "正在 Ping 8.8.8.8 具有 32 字节的数据:",
+                            "来自 8.8.8.8 的回复: 字节=32 时间=45ms TTL=116",
+                            "来自 8.8.8.8 的回复: 字节=32 时间=46ms TTL=116",
+                            "Ping 统计信息: 数据包: 已发送 = 2，已接收 = 2，丢失 = 0 (0% 丢失)"
+                        ];
+                        responses.forEach((line, i) => {
+                            setTimeout(() => setOutput(prev => [...prev, { text: line, type: 'result' }]), i * 500);
+                        });
+                    } else if (cmdText.includes('Get-ChildItem')) {
+                        setOutput(prev => [...prev, 
+                            { text: "目录: C:\\Work\\Docs", type: 'result' },
+                            { text: "Mode                 LastWriteTime         Length Name", type: 'result' },
+                            { text: "----                 -------------         ------ ----", type: 'result' },
+                            { text: "-a----        2024/5/20     14:23          1204  Report_2023.docx", type: 'result' },
+                            { text: "-a----        2024/5/20     14:24          3521  Budget_2023.xlsx", type: 'result' },
+                            { text: ">>> 执行自动化脚本：正在将文件名中的 '2023' 批量替换为 '2024'...", type: 'success' },
+                            { text: ">>> 完成！所有文件已更新。", type: 'success' }
+                        ]);
+                    }
+                }, 300);
+            };
+
+            return (
+                <div className="h-full flex flex-col gap-4">
+                    <div className="flex gap-4 mb-2">
+                        <button 
+                            onClick={() => { setMode('cmd'); setOutput([{ text: "Microsoft Windows [版本 10.0.19045]", type: 'info' }]); }}
+                            className={`px-4 py-2 rounded font-mono text-sm transition-colors border ${mode === 'cmd' ? 'bg-gray-800 border-gray-500 text-white' : 'border-gray-700 text-gray-500'}`}
+                        >
+                            CMD (老管家)
+                        </button>
+                        <button 
+                            onClick={() => { setMode('ps'); setOutput([{ text: "Windows PowerShell", type: 'info' }, { text: "版权所有 (C) Microsoft Corporation。", type: 'info' }]); }}
+                            className={`px-4 py-2 rounded font-mono text-sm transition-colors border ${mode === 'ps' ? 'bg-blue-900/50 border-blue-500 text-blue-200' : 'border-gray-700 text-gray-500'}`}
+                        >
+                            PowerShell (魔法棒)
+                        </button>
+                    </div>
+
+                    <div className={`flex-1 rounded-lg p-4 font-mono text-sm overflow-y-auto border border-gray-700 shadow-inner ${mode === 'cmd' ? 'bg-black text-gray-300' : 'bg-[#012456] text-white'}`}>
+                        {output.map((line, i) => (
+                            <div key={i} className={`mb-1 ${line.type === 'success' ? 'text-green-400' : line.type === 'command' ? 'text-yellow-300' : ''}`}>
+                                {line.text}
+                            </div>
+                        ))}
+                        <div className="animate-pulse">_</div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div 
+                            onClick={() => runCommand('ping 8.8.8.8')}
+                            className="p-3 bg-gray-800 hover:bg-gray-700 rounded border border-gray-600 cursor-pointer flex flex-col gap-1"
+                        >
+                            <span className="font-bold text-gray-300">简单任务 (Ping)</span>
+                            <span className="text-xs text-gray-400">测试网络通不通，简单粗暴。</span>
+                            <code className="text-xs bg-black/30 p-1 rounded mt-1 text-green-400">&gt; ping 8.8.8.8</code>
+                        </div>
+                        <div 
+                            onClick={() => {
+                                if(mode !== 'ps') { alert('请先切换到 PowerShell！\nCMD 听不懂这么高级的咒语。'); return; }
+                                runCommand('Get-ChildItem *.docx | Rename-Item -NewName { $_.Name -replace "2023","2024" }');
+                            }}
+                            className={`p-3 rounded border cursor-pointer flex flex-col gap-1 ${mode === 'ps' ? 'bg-blue-900/30 border-blue-600 hover:bg-blue-900/50' : 'bg-gray-800/50 border-gray-700 opacity-50'}`}
+                        >
+                            <span className="font-bold text-blue-300">自动化魔法 (批量改名)</span>
+                            <span className="text-xs text-gray-400">一行代码修改1000个文件名。</span>
+                            <code className="text-xs bg-black/30 p-1 rounded mt-1 text-blue-200">&gt; Get-ChildItem...</code>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 2. 文件系统 (分区、盘符与格式化) ---
+        const FileSystemSection = () => {
+            const [showExt, setShowExt] = useState(false);
+            const [driveStatus, setDriveStatus] = useState('ready');
+            const [progress, setProgress] = useState(0);
+
+            const startFormat = () => {
+                if (driveStatus === 'formatting') return;
+                setDriveStatus('formatting');
+                setProgress(0);
+                let p = 0;
+                const interval = setInterval(() => {
+                    p += 2;
+                    setProgress(p);
+                    if (p >= 100) {
+                        clearInterval(interval);
+                        setDriveStatus('empty');
+                    }
+                }, 50);
+            };
+
+            const resetDrive = () => {
+                setDriveStatus('ready');
+                setProgress(0);
+            };
+            
+            return (
+                <div className="space-y-8 h-full pr-2">
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between bg-slate-800 p-4 rounded-lg border border-slate-700">
+                            <div>
+                                <h3 className="text-lg font-bold text-white">1. 文件扩展名掩护实验</h3>
+                                <p className="text-sm text-gray-400">Windows 默认会隐藏已知后缀名，这很危险。</p>
+                            </div>
+                            <label className="flex items-center cursor-pointer">
+                                <div className="mr-3 text-sm font-medium text-gray-300">
+                                    {showExt ? "扩展名: [已显示]" : "扩展名: [已隐藏]"}
+                                </div>
+                                <div className="relative">
+                                    <input type="checkbox" className="sr-only" checked={showExt} onChange={() => setShowExt(!showExt)} />
+                                    <div className={`block w-14 h-8 rounded-full transition-colors ${showExt ? 'bg-green-500' : 'bg-gray-600'}`}></div>
+                                    <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${showExt ? 'transform translate-x-6' : ''}`}></div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-6">
+                            <div className={`p-4 rounded-lg border flex items-center gap-4 transition-colors group relative overflow-hidden ${showExt ? 'bg-red-900/20 border-red-500' : 'bg-slate-800 border-slate-700'}`}>
+                                {showExt && <div className="absolute top-0 right-0 bg-red-600 text-white text-xs px-2 py-1">警告</div>}
+                                <div className="text-4xl group-hover:scale-110 transition-transform">
+                                    {showExt ? '👾' : '🖼️'}
+                                </div>
+                                <div>
+                                    <div className="text-white font-mono text-base">
+                                        美女照片{showExt ? <span className="text-red-400 font-bold bg-red-900/30 px-1 rounded">.exe</span> : <span className="text-gray-400 opacity-0">.jpg</span>}
+                                    </div>
+                                    <div className={`text-xs mt-1 ${showExt ? 'text-red-400 font-bold' : 'text-gray-500'}`}>
+                                        {showExt ? "实际是：可执行程序 (病毒!)" : "看起来是：图片"}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 flex items-center gap-4">
+                                <div className="text-4xl">📄</div>
+                                <div>
+                                    <div className="text-white font-mono text-base">
+                                        毕业论文{showExt && <span className="text-yellow-400 font-bold bg-yellow-900/30 px-1 rounded">.docx</span>}
+                                    </div>
+                                    <div className="text-xs text-gray-500 mt-1">Microsoft Word 文档</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
+                        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2 border-b border-gray-700 pb-2">
+                            <span className="text-2xl">💽</span> 硬盘分区与格式化实验室
+                        </h3>
+                        <div className="mb-6">
+                            <div className="text-sm text-gray-400 mb-2 flex justify-between">
+                                <span>物理硬盘 (Disk 0) - 1TB SSD</span>
+                                <span className="text-xs bg-gray-700 px-2 rounded text-gray-300">比喻：一套房子被隔成了两个房间</span>
+                            </div>
+                            <div className="flex h-20 w-full rounded-lg overflow-hidden border-2 border-gray-600 font-mono text-xs shadow-lg">
+                                <div className="w-1/3 bg-blue-900/80 flex flex-col items-center justify-center text-white border-r-2 border-gray-800 relative group cursor-help transition-all hover:bg-blue-800">
+                                    <span className="font-bold text-xl">C:</span>
+                                    <span className="text-blue-200">系统分区 (NTFS)</span>
+                                </div>
+                                <div className="flex-1 bg-gray-700/50 flex flex-col items-center justify-center text-gray-200 relative transition-all">
+                                    {driveStatus === 'formatting' ? (
+                                        <div className="w-full px-8">
+                                            <div className="text-center mb-2 text-yellow-400 font-bold animate-pulse">
+                                                正在推平地面... {progress}%
+                                            </div>
+                                            <div className="w-full bg-gray-800 h-3 rounded-full overflow-hidden border border-gray-600">
+                                                <div className="bg-yellow-400 h-full transition-all duration-100 ease-linear" style={{width: `${progress}%`}}></div>
+                                            </div>
+                                        </div>
+                                    ) : driveStatus === 'empty' ? (
+                                        <div className="flex flex-col items-center animate-bounce-short">
+                                            <span className="font-bold text-xl text-gray-300">D:</span>
+                                            <span className="text-green-400 font-bold">可用空间 100%</span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <span className="font-bold text-xl">D:</span>
+                                            <span>数据分区</span>
+                                            <div className="flex gap-2 mt-2 opacity-60 text-lg">
+                                                <span>📄</span><span>📁</span><span>🎵</span><span>🎮</span>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-black/40 p-5 rounded border border-red-500/20 flex flex-col md:flex-row gap-6 items-start">
+                            <div className="flex-1">
+                                <h4 className="text-red-400 font-bold text-sm mb-2 flex items-center gap-2">
+                                    <span className="text-lg">⚠️</span> 什么是“格式化 (Format)”？
+                                </h4>
+                                <p className="text-xs text-gray-300 leading-relaxed mb-3">
+                                    许多小白以为格式化只是“删除所有文件”。错！<br/>
+                                    格式化的本质是：<strong className="text-white border-b border-white/30">把仓库里的货架全部拆除，地板铲平，然后重新画停车位（文件系统）</strong>。
+                                </p>
+                            </div>
+                            <div className="flex flex-col gap-3 min-w-[120px]">
+                                <button 
+                                    onClick={startFormat}
+                                    disabled={driveStatus !== 'ready'}
+                                    className={`px-4 py-3 rounded font-bold text-xs transition-all transform active:scale-95 flex items-center justify-center gap-2 ${driveStatus === 'ready' ? 'bg-red-600 hover:bg-red-500 text-white shadow-lg' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
+                                >
+                                    {driveStatus === 'formatting' ? "⏳ 施工中..." : "🧹 格式化 D 盘"}
+                                </button>
+                                {driveStatus === 'empty' && (
+                                    <button onClick={resetDrive} className="text-xs text-blue-400 hover:text-blue-300 hover:underline text-center">
+                                        ↺ 重置
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 3. 注册表 (DNA) ---
+        const RegistrySection = () => {
+            const [speed, setSpeed] = useState(10);
+            
+            return (
+                <div className="flex gap-6 h-full">
+                    <div className="flex-1 bg-slate-800 rounded-lg p-6 border border-slate-700 flex flex-col items-center justify-center gap-8">
+                        <div className="text-center">
+                            <h4 className="text-gray-400 mb-2">系统当前表现</h4>
+                            <div className="relative w-32 h-32 flex items-center justify-center border-4 border-gray-600 rounded-full">
+                                <div 
+                                    className="w-2 h-16 bg-cyan-400 origin-bottom absolute bottom-1/2 left-1/2 -ml-1 rounded-full"
+                                    style={{ transform: `rotate(${speed * 18}deg)`, transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+                                ></div>
+                                <div className="w-4 h-4 bg-white rounded-full absolute z-10"></div>
+                            </div>
+                            <div className="mt-4 font-mono text-xl text-cyan-400">Value: {speed}</div>
+                        </div>
+                        <p className="text-xs text-gray-500 text-center max-w-xs">
+                            改变右侧注册表的值，系统行为（表盘）会立即发生根本性改变。
+                        </p>
+                    </div>
+
+                    <div className="flex-1 bg-white text-black font-sans text-xs flex flex-col border border-gray-400 shadow-xl">
+                        <div className="bg-gray-100 p-1 border-b flex items-center gap-2">
+                            <span className="text-yellow-600">💾</span> 注册表编辑器
+                        </div>
+                        <div className="flex flex-1 overflow-hidden">
+                            <div className="w-1/3 border-r border-gray-200 p-2 overflow-y-auto">
+                                <div className="pl-2">📂 Computer</div>
+                                <div className="pl-4">📂 HKEY_CURRENT_USER</div>
+                                <div className="pl-6">📂 Control Panel</div>
+                                <div className="pl-8 bg-blue-100 border border-blue-300 text-blue-800 px-1">📂 Mouse</div>
+                            </div>
+                            <div className="flex-1 p-2 bg-white">
+                                <div className="grid grid-cols-3 font-bold border-b mb-2 pb-1 text-gray-500">
+                                    <span>名称</span>
+                                    <span>类型</span>
+                                    <span>数据</span>
+                                </div>
+                                <div className="grid grid-cols-3 py-1 hover:bg-blue-50 cursor-pointer bg-blue-100 group">
+                                    <span>🔑 MouseSpeed</span>
+                                    <span>REG_SZ</span>
+                                    <span className="font-bold">{speed}</span>
+                                </div>
+                                <div className="mt-8 p-4 bg-gray-100 border rounded">
+                                    <label className="block mb-2 font-bold">编辑字符串 (模拟)</label>
+                                    <input 
+                                        type="range" min="0" max="20" 
+                                        value={speed} 
+                                        onChange={(e) => setSpeed(e.target.value)}
+                                        className="w-full"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 4. 任务管理器 (Windows 10/11 风格重绘版 + 性能Tab联动) ---
+        const TaskManagerSection = () => {
+            const [activeTab, setActiveTab] = useState('processes'); // processes, performance
+            const [selectedId, setSelectedId] = useState(null);
+            const [processes, setProcesses] = useState([
+                { id: 1, name: 'Google Chrome', status: 'Running', cpu: 1.2, mem: 450, disk: 0.1, net: 0, type: 'app', icon: '🌐' },
+                { id: 2, name: 'Steam Client Bootstrapper', status: 'Running', cpu: 2.5, mem: 120, disk: 0, net: 0.1, type: 'app', icon: '🎮' },
+                { id: 3, name: 'Visual Studio Code', status: 'Running', cpu: 0.5, mem: 280, disk: 0, net: 0, type: 'app', icon: '📝' },
+                { id: 4, name: 'Service Host: Local System', status: 'Running', cpu: 0.1, mem: 15, disk: 0, net: 0, type: 'bg', icon: '⚙️' },
+                { id: 5, name: 'System Interrupts', status: 'Running', cpu: 0.1, mem: 0.1, disk: 0, net: 0, type: 'bg', icon: '⚡' },
+                { id: 6, name: 'CRASH_DEMO_APP.exe', status: 'Not Responding', cpu: 99.9, mem: 2048, disk: 50, net: 0, type: 'stuck', icon: '⚠️' },
+            ]);
+
+            const [perfType, setPerfType] = useState('cpu'); // cpu, mem, disk, net
+            
+            // 初始化数据
+            const [perfData, setPerfData] = useState(() => {
+                const hasCrash = processes.some(p => p.type === 'stuck');
+                return Array(60).fill(hasCrash ? 100 : 10);
+            });
+
+            // 模拟实时性能数据波动
+            useEffect(() => {
+                if (activeTab === 'performance') {
+                    const interval = setInterval(() => {
+                        setPerfData(prev => {
+                            const newData = [...prev.slice(1)];
+                            const hasCrashApp = processes.some(p => p.type === 'stuck');
+                            let base = 0;
+                            let noise = Math.random() * 5;
+
+                            if (perfType === 'cpu') {
+                                if (hasCrashApp) {
+                                    base = 98;
+                                    noise = Math.random() * 2;
+                                } else {
+                                    base = 10;
+                                    noise = Math.random() * 15;
+                                }
+                            } else if (perfType === 'mem') {
+                                base = hasCrashApp ? 55 : 40; 
+                                noise = Math.random() * 2 - 1;
+                            } else if (perfType === 'disk') {
+                                base = hasCrashApp ? 40 : 1; 
+                                noise = Math.random() * 5;
+                            } else {
+                                base = 0;
+                                noise = Math.random() * 2;
+                            }
+
+                            newData.push(Math.max(0, Math.min(100, base + noise)));
+                            return newData;
+                        });
+                    }, 500); 
+                    return () => clearInterval(interval);
+                }
+            }, [activeTab, perfType, processes]);
+
+            const handleEndTask = () => {
+                if (selectedId) {
+                    setProcesses(prev => prev.filter(p => p.id !== selectedId));
+                    setSelectedId(null);
+                }
+            };
+
+            const getHeatMapColor = (value, type) => {
+                if (type === 'cpu') {
+                    if (value > 90) return 'bg-[#e04f5f] text-white'; 
+                    if (value > 50) return 'bg-[#d28028] text-white'; 
+                    if (value > 10) return 'bg-[#cfae3d] text-black'; 
+                }
+                if (type === 'mem') {
+                    if (value > 1000) return 'bg-[#ddae58] text-black';
+                    if (value > 500) return 'bg-[#eadd83] text-black';
+                }
+                if (type === 'disk' && value > 10) return 'bg-[#e04f5f] text-white';
+                return 'transparent';
+            };
+
+            const MiniChart = ({ data, color = "#60a5fa" }) => {
+                const width = 60;
+                const height = 30;
+                const points = data.slice(-20).map((val, i) => {
+                    const x = (i / 19) * width;
+                    const y = height - (val / 100) * height;
+                    return `${x},${y}`;
+                }).join(' ');
+                return (
+                    <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+                        <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" />
+                    </svg>
+                );
+            };
+
+            const BigChart = ({ data, color = "#60a5fa" }) => {
+                const width = 400;
+                const height = 150;
+                const points = data.map((val, i) => {
+                    const x = (i / (data.length - 1)) * width;
+                    const y = height - (val / 100) * height;
+                    return `${x},${y}`;
+                }).join(' ');
+                const areaPoints = `${points} ${width},${height} 0,${height}`;
+
+                return (
+                    <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor={color} stopOpacity="0.2"/>
+                                <stop offset="100%" stopColor={color} stopOpacity="0"/>
+                            </linearGradient>
+                        </defs>
+                        <polygon points={areaPoints} fill="url(#chartGradient)" />
+                        <polyline points={points} fill="none" stroke={color} strokeWidth="2" />
+                        <line x1="0" y1="0" x2={width} y2="0" stroke="#444" strokeWidth="0.5" strokeDasharray="4" />
+                        <line x1="0" y1={height/2} x2={width} y2={height/2} stroke="#444" strokeWidth="0.5" strokeDasharray="4" />
+                        <line x1="0" y1={height} x2={width} y2={height} stroke="#444" strokeWidth="0.5" strokeDasharray="4" />
+                    </svg>
+                );
+            };
+
+            const PerfSidebarItem = ({ title, subtitle, value, type, active, onClick }) => (
+                <div 
+                    onClick={onClick}
+                    className={`p-2 border-l-4 cursor-pointer hover:bg-[#3a3a3a] transition-colors flex gap-3 items-center h-16 ${active ? 'bg-[#3a3a3a] border-blue-500' : 'border-transparent'}`}
+                >
+                    <div className="flex-1 min-w-0">
+                        <div className="font-bold text-sm truncate">{title}</div>
+                        <div className="text-xs text-gray-400 truncate">{subtitle}</div>
+                    </div>
+                    <div className="flex flex-col items-end w-20">
+                        <div className="font-mono text-sm">{value}</div>
+                        <div className="w-16 h-8 mt-1 opacity-70">
+                            {active ? <MiniChart data={perfData} /> : <MiniChart data={type === 'cpu' && processes.some(p=>p.type==='stuck') ? Array(20).fill(100) : Array(20).fill(5)} color="#888"/>}
+                        </div>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="h-full flex flex-col bg-[#202020] text-white font-sans text-xs border border-gray-600 rounded-lg shadow-2xl overflow-hidden select-none relative">
+                    <div className="bg-[#2d2d2d] p-2 flex justify-between items-center border-b border-gray-600">
+                        <div className="flex items-center gap-2">
+                            <span className="w-4 h-4 bg-blue-500 rounded-sm flex items-center justify-center text-[10px]">📊</span>
+                            <span className="text-xs font-normal">任务管理器</span>
+                        </div>
+                        <div className="flex gap-4 px-2">
+                             <span className="w-3 h-3 border border-gray-500 rounded-sm"></span>
+                             <span className="w-3 h-3 border border-gray-500 rounded-sm"></span>
+                             <span className="w-3 h-3 border border-gray-500 rounded-sm bg-red-500 border-red-500"></span>
+                        </div>
+                    </div>
+
+                    <div className="bg-[#2d2d2d] flex gap-1 px-2 pt-1 border-b border-gray-600 text-gray-400">
+                        <div 
+                            onClick={() => setActiveTab('processes')}
+                            className={`px-3 py-1 rounded-t-sm cursor-pointer transition-colors ${activeTab === 'processes' ? 'bg-[#202020] text-white border-t border-l border-r border-gray-600' : 'hover:bg-[#3a3a3a]'}`}
+                        >
+                            进程
+                        </div>
+                        <div 
+                            onClick={() => setActiveTab('performance')}
+                            className={`px-3 py-1 rounded-t-sm cursor-pointer transition-colors ${activeTab === 'performance' ? 'bg-[#202020] text-white border-t border-l border-r border-gray-600' : 'hover:bg-[#3a3a3a]'}`}
+                        >
+                            性能
+                        </div>
+                        <div className="px-3 py-1 hover:bg-[#3a3a3a] rounded-t-sm cursor-not-allowed opacity-50">应用历史记录</div>
+                        <div className="px-3 py-1 hover:bg-[#3a3a3a] rounded-t-sm cursor-not-allowed opacity-50">启动</div>
+                        <div className="px-3 py-1 hover:bg-[#3a3a3a] rounded-t-sm cursor-not-allowed opacity-50">用户</div>
+                    </div>
+                    
+                    <div className="flex-1 overflow-hidden bg-[#202020] relative">
+                        {activeTab === 'processes' && (
+                            <div className="h-full flex flex-col">
+                                <div className="grid grid-cols-12 bg-[#2d2d2d] border-b border-gray-600 text-gray-400 py-1 px-2 gap-1 items-center font-bold">
+                                    <div className="col-span-5 pl-2 border-r border-gray-600 hover:bg-[#3a3a3a] cursor-default">名称</div>
+                                    <div className="col-span-2 pl-2 border-r border-gray-600 hover:bg-[#3a3a3a] cursor-default">状态</div>
+                                    <div className="col-span-1 pl-2 border-r border-gray-600 hover:bg-[#3a3a3a] text-right pr-2 cursor-default">CPU</div>
+                                    <div className="col-span-2 pl-2 border-r border-gray-600 hover:bg-[#3a3a3a] text-right pr-2 cursor-default">内存</div>
+                                    <div className="col-span-1 pl-2 border-r border-gray-600 hover:bg-[#3a3a3a] text-right pr-2 cursor-default">磁盘</div>
+                                    <div className="col-span-1 pl-2 hover:bg-[#3a3a3a] text-right pr-2 cursor-default">网络</div>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto bg-[#202020] win-scroll">
+                                    {processes.map(p => (
+                                        <div 
+                                            key={p.id}
+                                            onClick={() => setSelectedId(p.id)}
+                                            className={`grid grid-cols-12 gap-1 py-[3px] px-2 items-center cursor-default ${selectedId === p.id ? 'bg-[#43505c]' : 'hover:bg-[#2a2a2a]'}`}
+                                        >
+                                            <div className="col-span-5 flex items-center gap-2 overflow-hidden pl-2">
+                                                <span className="flex-shrink-0 w-4 h-4 text-center opacity-80">{p.icon}</span>
+                                                <span className="truncate" title={p.name}>{p.name}</span>
+                                            </div>
+                                            <div className={`col-span-2 truncate pl-2 ${p.status === 'Not Responding' ? 'text-red-400' : 'text-gray-400'}`}>
+                                                {p.status === 'Running' ? '' : p.status}
+                                            </div>
+                                            <div className={`col-span-1 text-right pr-2 ${getHeatMapColor(p.cpu, 'cpu')}`}>
+                                                {p.cpu.toFixed(1)}%
+                                            </div>
+                                            <div className={`col-span-2 text-right pr-2 ${getHeatMapColor(p.mem, 'mem')}`}>
+                                                {p.mem.toFixed(1)} MB
+                                            </div>
+                                            <div className={`col-span-1 text-right pr-2 ${getHeatMapColor(p.disk, 'disk')}`}>
+                                                {p.disk.toFixed(1)} MB/s
+                                            </div>
+                                            <div className="col-span-1 text-right pr-2 text-gray-400">
+                                                {p.net} Mbps
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {processes.length === 0 && <div className="p-4 text-center text-gray-500">所有任务已结束</div>}
+                                </div>
+
+                                <div className="bg-[#2d2d2d] border-t border-gray-600 p-2 flex justify-between items-center h-10 mt-auto">
+                                    <div className="text-gray-400 pl-2">
+                                        进程数: {processes.length}
+                                    </div>
+                                    <button 
+                                        onClick={handleEndTask}
+                                        disabled={!selectedId}
+                                        className={`px-4 py-1 rounded border text-sm transition-colors ${
+                                            selectedId 
+                                            ? 'bg-[#3a3a3a] border-gray-500 text-white hover:bg-[#4a4a4a] active:bg-[#2a2a2a]' 
+                                            : 'bg-[#2d2d2d] border-gray-600 text-gray-500 cursor-not-allowed'
+                                        }`}
+                                    >
+                                        结束任务
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'performance' && (
+                            <div className="h-full flex">
+                                <div className="w-1/3 max-w-[200px] border-r border-gray-600 flex flex-col overflow-y-auto win-scroll bg-[#252525]">
+                                    <PerfSidebarItem 
+                                        title="CPU" subtitle="Intel Core i9-9900K" 
+                                        value={perfType==='cpu' ? `${perfData[perfData.length-1].toFixed(0)}%` : (processes.some(p=>p.type==='stuck') ? "100%" : "12%")} 
+                                        active={perfType === 'cpu'} onClick={() => setPerfType('cpu')} 
+                                    />
+                                    <PerfSidebarItem 
+                                        title="内存" subtitle="16.0 GB" 
+                                        value={perfType==='mem' ? `${(perfData[perfData.length-1]/100 * 16).toFixed(1)} GB` : (processes.some(p=>p.type==='stuck') ? "9.2 GB" : "4.5 GB")} 
+                                        active={perfType === 'mem'} onClick={() => setPerfType('mem')} 
+                                    />
+                                    <PerfSidebarItem 
+                                        title="磁盘 0 (C:)" subtitle="SSD" 
+                                        value={perfType==='disk' ? `${perfData[perfData.length-1].toFixed(0)}%` : (processes.some(p=>p.type==='stuck') ? "50%" : "1%")} 
+                                        active={perfType === 'disk'} onClick={() => setPerfType('disk')} 
+                                    />
+                                    <PerfSidebarItem 
+                                        title="以太网" subtitle="S: 0 R: 0 Kbps" 
+                                        value="0%" 
+                                        active={perfType === 'net'} onClick={() => setPerfType('net')} 
+                                    />
+                                </div>
+
+                                <div className="flex-1 p-4 flex flex-col overflow-y-auto win-scroll">
+                                    <div className="flex justify-between items-end mb-2">
+                                        <span className="text-xl font-bold text-blue-400">
+                                            {perfType === 'cpu' ? 'CPU' : perfType === 'mem' ? '内存' : perfType === 'disk' ? '磁盘 0 (C:)' : '以太网'}
+                                        </span>
+                                        <span className="text-base font-thin text-gray-300">
+                                            {perfType === 'cpu' ? 'Intel Core i9-9900K @ 3.60GHz' : perfType === 'mem' ? '16.0 GB DDR4' : 'Samsung SSD 970 EVO Plus 1TB'}
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="h-64 border border-gray-600 bg-[#1e1e1e] mb-6 relative p-px">
+                                        <div className="absolute top-2 right-2 text-gray-400 text-xs">60 秒</div>
+                                        <div className="absolute top-2 left-2 text-gray-400 text-xs">100%</div>
+                                        <div className="absolute bottom-2 left-2 text-gray-400 text-xs">0%</div>
+                                        <BigChart data={perfData} color={perfType === 'mem' ? '#a855f7' : '#60a5fa'} />
+                                    </div>
+
+                                    <div className="grid grid-cols-3 gap-x-8 gap-y-4 text-sm text-gray-400">
+                                        {perfType === 'cpu' && (
+                                            <>
+                                                <div><div className="text-xs">利用率</div><div className="text-xl text-white">{perfData[perfData.length-1].toFixed(0)}%</div></div>
+                                                <div><div className="text-xs">速度</div><div className="text-xl text-white">4.20 GHz</div></div>
+                                                <div><div className="text-xs">进程</div><div className="text-xl text-white">{processes.length + 180}</div></div>
+                                                <div><div className="text-xs">线程</div><div className="text-xl text-white">2450</div></div>
+                                                <div><div className="text-xs">句柄</div><div className="text-xl text-white">89021</div></div>
+                                                <div><div className="text-xs">正常运行时间</div><div className="text-xl text-white">0:04:21:12</div></div>
+                                                <div className="col-span-3 border-t border-gray-600 mt-2 pt-2 flex justify-between">
+                                                    <span>基准速度: 3.60 GHz</span>
+                                                    <span>内核: 8</span>
+                                                    <span>逻辑处理器: 16</span>
+                                                </div>
+                                            </>
+                                        )}
+                                        {perfType === 'mem' && (
+                                            <>
+                                                <div><div className="text-xs">使用中</div><div className="text-xl text-white">{(perfData[perfData.length-1]/100 * 16).toFixed(1)} GB</div></div>
+                                                <div><div className="text-xs">可用</div><div className="text-xl text-white">{(16 - perfData[perfData.length-1]/100 * 16).toFixed(1)} GB</div></div>
+                                                <div><div className="text-xs">已提交</div><div className="text-xl text-white">9.2/18.0 GB</div></div>
+                                                <div><div className="text-xs">已缓存</div><div className="text-xl text-white">4.5 GB</div></div>
+                                                <div><div className="text-xs">分页缓冲池</div><div className="text-xl text-white">482 MB</div></div>
+                                                <div><div className="text-xs">非分页缓冲池</div><div className="text-xl text-white">390 MB</div></div>
+                                                <div className="col-span-3 border-t border-gray-600 mt-2 pt-2">
+                                                    速度: 3200 MHz &nbsp;&nbsp; 插槽: 2/4 &nbsp;&nbsp; 外形规格: DIMM
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'processes' && processes.some(p => p.type === 'stuck') && (
+                            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-blue-600 text-white p-4 rounded-lg shadow-2xl animate-hint pointer-events-none z-20 border border-blue-400">
+                                <div className="font-bold text-lg mb-1">☝️ 警报：CPU 100%</div>
+                                <div className="text-blue-100">
+                                    发现红色高亮的 "CRASH_APP" 了吗？<br/>
+                                    选中它，然后点击右下角的 [结束任务]！
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 5. 环境变量 (模拟真实操作) ---
+        const EnvVarSection = () => {
+            const [terminalInput, setTerminalInput] = useState('');
+            const [terminalOutput, setTerminalOutput] = useState([
+                { text: "Windows PowerShell", type: 'info' },
+                { text: "Copyright (C) Microsoft Corporation. All rights reserved.", type: 'info' },
+                { text: "", type: 'empty' }
+            ]);
+            
+            const [hasPython, setHasPython] = useState(false);
+            const [selectedRow, setSelectedRow] = useState(null);
+            const [showPathEditor, setShowPathEditor] = useState(false);
+            const [pathList, setPathList] = useState([
+                "C:\\Users\\Admin\\AppData\\Local\\Microsoft\\WindowsApps",
+                "C:\\Users\\Admin\\AppData\\Local\\Programs\\Microsoft VS Code\\bin"
+            ]);
+
+            const userVars = [
+                { name: "OneDrive", value: "C:\\Users\\Admin\\OneDrive" },
+                { name: "Path", value: hasPython ? "C:\\Users\\Admin\\...;C:\\Python39\\bin" : "C:\\Users\\Admin\\AppData\\Local\\..." },
+                { name: "TEMP", value: "C:\\Users\\Admin\\AppData\\Local\\Temp" },
+                { name: "TMP", value: "C:\\Users\\Admin\\AppData\\Local\\Temp" }
+            ];
+
+            const sysVars = [
+                { name: "ComSpec", value: "C:\\WINDOWS\\system32\\cmd.exe" },
+                { name: "DriverData", value: "C:\\Windows\\System32\\Drivers\\DriverData" },
+                { name: "OS", value: "Windows_NT" },
+                { name: "Path", value: "C:\\WINDOWS\\system32;C:\\WINDOWS;..." },
+                { name: "PROCESSOR_ARCHITECTURE", value: "AMD64" }
+            ];
+
+            const handleCommand = (e) => {
+                if (e.key === 'Enter') {
+                    const cmd = terminalInput.trim();
+                    const newOutput = [...terminalOutput, { text: `PS C:\\Users\\Admin> ${cmd}`, type: 'command' }];
+                    
+                    if (cmd === 'python') {
+                        if (hasPython) {
+                            newOutput.push({ text: "Python 3.9.5 (tags/v3.9.5:0a7dcbd) [MSC v.1928 64 bit (AMD64)] on win32", type: 'success' });
+                            newOutput.push({ text: "Type \"help\", \"copyright\", \"credits\" or \"license\" for more information.", type: 'success' });
+                            newOutput.push({ text: ">>> ", type: 'success' });
+                        } else {
+                            newOutput.push({ text: "python : 无法将“python”项识别为 cmdlet、函数、脚本文件或可运行程序的名称。", type: 'error' });
+                            newOutput.push({ text: "请检查名称的拼写，如果包括路径，请确保路径正确，然后再试一次。", type: 'error' });
+                        }
+                    } else if (cmd === 'clear') {
+                        setTerminalOutput([]);
+                        setTerminalInput('');
+                        return;
+                    } else if (cmd !== '') {
+                        newOutput.push({ text: `无法识别命令 '${cmd}'`, type: 'error' });
+                    }
+                    
+                    setTerminalOutput(newOutput);
+                    setTerminalInput('');
+                }
+            };
+
+            const addPythonToPath = () => {
+                if (!pathList.includes("C:\\Python39\\bin")) {
+                    setPathList([...pathList, "C:\\Python39\\bin"]);
+                    setHasPython(true);
+                }
+            };
+
+            return (
+                <div className="h-full flex flex-col gap-6">
+                    <div className="flex-1 bg-[#f0f0f0] rounded-lg shadow-xl border border-gray-400 text-black font-sans text-xs flex flex-col relative overflow-hidden select-none">
+                        <div className="bg-white px-3 py-2 border-b border-gray-200 flex justify-between items-center">
+                            <span>环境变量</span>
+                            <div className="flex gap-2 text-gray-400">
+                                <span>?</span>
+                                <span>✕</span>
+                            </div>
+                        </div>
+
+                        <div className="p-4 flex flex-col gap-4 overflow-y-auto win-scroll">
+                            <div>
+                                <div className="mb-1">Admin 的用户变量(U)</div>
+                                <div className="bg-white border border-gray-400 h-28 overflow-y-auto win-scroll">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-gray-100 border-b border-gray-300">
+                                                <th className="font-normal w-1/3 pl-1 border-r border-gray-200">变量</th>
+                                                <th className="font-normal pl-1">值</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {userVars.map((v, i) => (
+                                                <tr 
+                                                    key={i} 
+                                                    onClick={() => setSelectedRow(v.name)}
+                                                    className={`cursor-default ${selectedRow === v.name ? 'bg-[#0078d7] text-white' : 'hover:bg-gray-100'}`}
+                                                >
+                                                    <td className="pl-1 border-r border-gray-200 border-dotted truncate max-w-[100px]">{v.name}</td>
+                                                    <td className="pl-1 truncate max-w-[200px]">{v.value}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className="flex justify-end gap-2 mt-2">
+                                    <button 
+                                        onClick={() => {
+                                            if (selectedRow === 'Path') setShowPathEditor(true);
+                                            else alert("请先选中 'Path' 变量！我们需要告诉系统去哪里找程序。");
+                                        }}
+                                        className="px-3 py-1 border border-gray-400 bg-[#e1e1e1] hover:bg-[#e5f1fb] hover:border-[#0078d7] rounded-sm"
+                                    >
+                                        编辑(E)...
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div className="mb-1">系统变量(S)</div>
+                                <div className="bg-white border border-gray-400 h-28 overflow-y-auto opacity-70 win-scroll">
+                                    <table className="w-full text-left border-collapse text-gray-600">
+                                        <thead>
+                                            <tr className="bg-gray-100 border-b border-gray-300">
+                                                <th className="font-normal w-1/3 pl-1 border-r border-gray-200">变量</th>
+                                                <th className="font-normal pl-1">值</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {sysVars.map((v, i) => (
+                                                <tr key={i}>
+                                                    <td className="pl-1 border-r border-gray-200 border-dotted truncate max-w-[100px]">{v.name}</td>
+                                                    <td className="pl-1 truncate max-w-[200px]">{v.value}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        {showPathEditor && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
+                                <div className="bg-white w-[90%] h-[90%] shadow-2xl border border-gray-500 flex flex-col text-xs">
+                                    <div className="p-2 border-b flex justify-between items-center">
+                                        <span>编辑环境变量</span>
+                                        <button onClick={() => setShowPathEditor(false)} className="hover:bg-red-500 hover:text-white px-2">✕</button>
+                                    </div>
+                                    <div className="flex-1 p-3 flex gap-3 overflow-hidden">
+                                        <div className="flex-1 bg-white border border-gray-400 overflow-y-auto p-1 win-scroll">
+                                            {pathList.map((path, i) => (
+                                                <div key={i} className="hover:bg-[#e5f1fb] hover:border-[#0078d7] border border-transparent px-1 truncate">
+                                                    {path}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="flex flex-col gap-2 w-24">
+                                            <button 
+                                                onClick={addPythonToPath}
+                                                className={`px-3 py-1 border border-gray-400 bg-[#e1e1e1] hover:bg-[#e5f1fb] hover:border-[#0078d7] rounded-sm text-left pl-2 ${hasPython ? 'opacity-50' : 'animate-pulse border-blue-500 font-bold'}`}
+                                            >
+                                                新建(N)
+                                            </button>
+                                            <button className="px-3 py-1 border border-gray-400 bg-[#e1e1e1] rounded-sm text-left pl-2 opacity-50">编辑(E)</button>
+                                            <button className="px-3 py-1 border border-gray-400 bg-[#e1e1e1] rounded-sm text-left pl-2 opacity-50">删除(D)</button>
+                                        </div>
+                                    </div>
+                                    <div className="p-2 border-t bg-[#f0f0f0] flex justify-end gap-2">
+                                        <button onClick={() => setShowPathEditor(false)} className="px-4 py-1 border border-[#0078d7] bg-[#e1e1e1] hover:bg-[#e5f1fb] rounded-sm">确定</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="h-48 bg-[#012456] text-gray-200 font-mono text-sm p-2 overflow-y-auto border-t-4 border-gray-600 rounded-b-lg shadow-inner win-scroll">
+                        {terminalOutput.map((line, i) => (
+                            <div key={i} className={`mb-1 break-all ${line.type === 'error' ? 'text-red-400' : line.type === 'success' ? 'text-green-300' : ''}`}>
+                                {line.text}
+                            </div>
+                        ))}
+                        <div className="flex">
+                            <span className="text-white mr-2">PS C:\Users\Admin&gt;</span>
+                            <input 
+                                type="text" 
+                                value={terminalInput}
+                                onChange={(e) => setTerminalInput(e.target.value)}
+                                onKeyDown={handleCommand}
+                                className="bg-transparent border-none outline-none flex-1 text-white"
+                                autoFocus
+                                placeholder={hasPython ? "环境已配置！输入 python 试试" : "输入 python 试试..."}
+                            />
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 主框架 ---
+        function App() {
+            const [activeTab, setActiveTab] = useState('cmd');
+
+            const MENU_ITEMS = [
+                { id: 'cmd', icon: '💻', title: '控制台 (CMD/PS)', desc: '真正的权力中心' },
+                { id: 'file', icon: '🗄️', title: '文件系统', desc: '分区、格式化与扩展名' },
+                { id: 'registry', icon: '🧬', title: '注册表', desc: '系统的 DNA' },
+                { id: 'task', icon: '💓', title: '任务管理器', desc: '隐形的工作者' },
+                { id: 'env', icon: '🗺️', title: '环境变量', desc: '系统通讯录' },
+            ];
+
+            const renderContent = () => {
+                switch(activeTab) {
+                    case 'cmd': return <TerminalSection />;
+                    case 'file': return <FileSystemSection />;
+                    case 'registry': return <RegistrySection />;
+                    case 'task': return <TaskManagerSection />;
+                    case 'env': return <EnvVarSection />;
+                    default: return <TerminalSection />;
+                }
+            };
+
+            return (
+                <div className="flex h-screen w-screen">
+                    <div className="w-64 bg-slate-900 border-r border-slate-700 flex flex-col">
+                        <div className="p-6 border-b border-slate-800">
+                            <h1 className="text-xl font-bold text-white flex items-center gap-2">
+                                <span className="text-cyan-400">WIN</span>
+                                <span className="font-light">INTERNALS</span>
+                            </h1>
+                            <p className="text-xs text-slate-400 mt-1">进阶指南 v2.5</p>
+                        </div>
+                        <nav className="flex-1 p-4 space-y-2">
+                            {MENU_ITEMS.map(item => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setActiveTab(item.id)}
+                                    className={`nav-item w-full text-left p-3 rounded transition-all duration-200 group ${activeTab === item.id ? 'active' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xl group-hover:scale-110 transition-transform">{item.icon}</span>
+                                        <div>
+                                            <div className="font-bold text-sm">{item.title}</div>
+                                            <div className="text-[10px] opacity-70">{item.desc}</div>
+                                        </div>
+                                    </div>
+                                </button>
+                            ))}
+                        </nav>
+                        
+                        <div className="p-4 m-4 bg-gradient-to-br from-indigo-900 to-slate-900 rounded border border-indigo-500/30 text-xs">
+                            <div className="font-bold text-indigo-300 mb-1">💡 进阶装逼技巧</div>
+                            <div className="text-slate-300 leading-relaxed">
+                                {activeTab === 'cmd' && "按住 Shift + 右键点击文件夹背景，可以选择“在此处打开 PowerShell 窗口”。"}
+                                {activeTab === 'file' && "尝试在地址栏输入 'cmd' 然后回车，可以直接在这个目录打开终端。"}
+                                {activeTab === 'registry' && "永远不要在没有备份的情况下删除注册表键值。可以使用 '导出' 功能备份。"}
+                                {activeTab === 'task' && "按 Ctrl + Shift + Esc 可以直接调出任务管理器，比 Ctrl+Alt+Del 更快。"}
+                                {activeTab === 'env' && "修改环境变量后，通常需要重启终端（CMD/PS）才会生效。"}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 flex flex-col bg-[#0f172a] relative overflow-hidden">
+                        <div className="absolute inset-0 z-0 opacity-10 pointer-events-none" 
+                             style={{backgroundImage: 'radial-gradient(#475569 1px, transparent 1px)', backgroundSize: '20px 20px'}}>
+                        </div>
+
+                        <div className="p-8 pb-4 z-10">
+                            <h2 className="text-3xl font-bold text-white mb-2">
+                                {MENU_ITEMS.find(i => i.id === activeTab).title}
+                            </h2>
+                            <p className="text-slate-400">
+                                {activeTab === 'cmd' && "图形界面限制了你的想象力，命令行才是真正的“上帝模式”。"}
+                                {activeTab === 'file' && "文件系统不仅是仓库，更是有着森严等级制度的逻辑分区。"}
+                                {activeTab === 'registry' && "Windows 的基因库。所有的设置变动，最终都会写在这里。"}
+                                {activeTab === 'task' && "当电脑卡死时，这里就是你的手术台。找到病灶，切除它。"}
+                                {activeTab === 'env' && "为什么输入 python 电脑就知道去哪里找程序？全靠这个“通讯录”。"}
+                            </p>
+                        </div>
+
+                        <div className="flex-1 p-8 pt-0 z-10 overflow-hidden">
+                            <div className="h-full bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-6 shadow-2xl overflow-y-auto">
+                                {renderContent()}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
