@@ -108,6 +108,10 @@
                     <button onclick="switchView('languages')" id="nav-languages" class="nav-btn px-3 py-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition text-sm whitespace-nowrap">
                         <i class="fa-solid fa-book-atlas mr-1"></i> 图鉴
                     </button>
+                    <!-- 学习路线 (NEW) -->
+                    <button onclick="switchView('roadmap')" id="nav-roadmap" class="nav-btn px-3 py-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition text-sm whitespace-nowrap">
+                        <i class="fa-solid fa-road mr-1"></i> <span class="hidden md:inline">学习</span>路线
+                    </button>
                     <!-- 必备工具 -->
                     <button onclick="switchView('tools')" id="nav-tools" class="nav-btn px-3 py-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition text-sm whitespace-nowrap">
                         <i class="fa-solid fa-toolbox mr-1"></i> 工具
@@ -551,7 +555,7 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    <!-- Python (Updated to link to new view) -->
+                    <!-- Python -->
                     <div onclick="switchView('python')" class="cursor-pointer bg-white rounded-xl shadow-sm hover:shadow-xl hover:scale-[1.02] transition p-6 border-t-4 border-yellow-400 group flex flex-col relative overflow-hidden">
                         <div class="absolute -right-6 -top-6 w-20 h-20 bg-yellow-100/50 rounded-full blur-xl group-hover:bg-yellow-200/50 transition"></div>
                         <div class="flex justify-between items-start mb-4 relative z-10">
@@ -756,7 +760,138 @@
             </div>
         </div>
 
-        <!-- 界面 5: 必备工具 (Tools) - NEW -->
+        <!-- 界面 5: 学习路线图 (Roadmap) - NEW (严肃版) -->
+        <div id="view-roadmap" class="view-section hidden fade-in">
+            <div class="max-w-5xl mx-auto">
+                <div class="text-center mb-10">
+                    <h2 class="text-3xl font-bold text-slate-800">计算机科学与编程学习路线</h2>
+                    <p class="text-slate-500 mt-2">系统化的知识构建路径 (Roadmap)</p>
+                </div>
+
+                <div class="space-y-6 relative border-l-2 border-slate-200 ml-4 md:ml-8 pl-8 pb-12">
+                    
+                    <!-- 阶段 0：先导知识 -->
+                    <div class="relative">
+                        <span class="absolute -left-11 top-0 bg-slate-100 border-4 border-white text-slate-500 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-sm">0</span>
+                        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                            <h3 class="text-lg font-bold text-slate-800 mb-2">Phase 0: 计算机通识 (General CS)</h3>
+                            <p class="text-sm text-slate-600 mb-4">在开始写代码之前，先理解计算机是如何工作的。这决定了你能走多远。</p>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                <div class="bg-slate-50 p-3 rounded text-center border border-slate-100">
+                                    <div class="font-bold text-slate-700">计算机组成原理</div>
+                                    <div class="text-xs text-slate-500">二进制, 内存, CPU</div>
+                                </div>
+                                <div class="bg-slate-50 p-3 rounded text-center border border-slate-100">
+                                    <div class="font-bold text-slate-700">操作系统 (OS)</div>
+                                    <div class="text-xs text-slate-500">进程, 线程, Linux</div>
+                                </div>
+                                <div class="bg-slate-50 p-3 rounded text-center border border-slate-100">
+                                    <div class="font-bold text-slate-700">计算机网络</div>
+                                    <div class="text-xs text-slate-500">HTTP, TCP/IP, DNS</div>
+                                </div>
+                                <div class="bg-slate-50 p-3 rounded text-center border border-slate-100">
+                                    <div class="font-bold text-slate-700">命令行 (Shell)</div>
+                                    <div class="text-xs text-slate-500">基本指令操作</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 阶段 1：语言基础 -->
+                    <div class="relative">
+                        <span class="absolute -left-11 top-0 bg-indigo-100 border-4 border-white text-indigo-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-sm">1</span>
+                        <div class="bg-white p-6 rounded-xl border border-indigo-100 shadow-sm">
+                            <h3 class="text-lg font-bold text-indigo-900 mb-2">Phase 1: 掌握一门编程语言 (Syntax)</h3>
+                            <p class="text-sm text-slate-600 mb-4">
+                                不要贪多，精通一门。建议从 <strong>Python</strong> (易上手) 或 <strong>Java/C++</strong> (强类型) 开始。
+                            </p>
+                            <ul class="list-disc list-inside text-sm text-slate-700 space-y-1 bg-indigo-50/50 p-4 rounded-lg">
+                                <li><strong>基本语法：</strong>变量, 数据类型, 运算符</li>
+                                <li><strong>控制流：</strong>if-else, for/while 循环</li>
+                                <li><strong>函数封装：</strong>参数传递, 返回值, 作用域</li>
+                                <li><strong>面向对象 (OOP)：</strong>类, 对象, 继承, 多态</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- 阶段 2：数据结构与算法 -->
+                    <div class="relative">
+                        <span class="absolute -left-11 top-0 bg-yellow-100 border-4 border-white text-yellow-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-sm">2</span>
+                        <div class="bg-white p-6 rounded-xl border border-yellow-200 shadow-md">
+                            <h3 class="text-lg font-bold text-yellow-900 mb-2">Phase 2: 数据结构与算法 (Algorithm)</h3>
+                            <p class="text-sm text-slate-600 mb-4">
+                                <strong>程序员的分水岭。</strong>决定了你写出的代码效率高低，也是大厂面试的必考题。
+                            </p>
+                            
+                            <div class="grid md:grid-cols-2 gap-6 mb-4">
+                                <div>
+                                    <h4 class="font-bold text-sm text-slate-700 mb-2">核心知识点：</h4>
+                                    <div class="flex flex-wrap gap-2 text-xs">
+                                        <span class="bg-slate-100 px-2 py-1 rounded">数组/链表</span>
+                                        <span class="bg-slate-100 px-2 py-1 rounded">栈/队列</span>
+                                        <span class="bg-slate-100 px-2 py-1 rounded">二叉树</span>
+                                        <span class="bg-slate-100 px-2 py-1 rounded">哈希表</span>
+                                        <span class="bg-slate-100 px-2 py-1 rounded">排序算法</span>
+                                        <span class="bg-slate-100 px-2 py-1 rounded">动态规划</span>
+                                        <span class="bg-slate-100 px-2 py-1 rounded">DFS/BFS</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-sm text-slate-700 mb-2"><i class="fa-solid fa-trophy text-yellow-500 mr-1"></i> 推荐刷题平台：</h4>
+                                    <ul class="space-y-2 text-sm">
+                                        <li class="flex items-center justify-between bg-slate-50 p-2 rounded hover:bg-yellow-50 transition border border-slate-100">
+                                            <span class="font-semibold text-slate-700">LeetCode (力扣)</span>
+                                            <a href="#" class="text-xs text-blue-500 hover:underline">全球标准题库</a>
+                                        </li>
+                                        <li class="flex items-center justify-between bg-slate-50 p-2 rounded hover:bg-yellow-50 transition border border-slate-100">
+                                            <span class="font-semibold text-slate-700">Hello 算法</span>
+                                            <span class="text-xs text-gray-500">动画图解新手书</span>
+                                        </li>
+                                        <li class="flex items-center justify-between bg-slate-50 p-2 rounded hover:bg-yellow-50 transition border border-slate-100">
+                                            <span class="font-semibold text-slate-700">Codeforces</span>
+                                            <span class="text-xs text-gray-500">竞赛级高难度</span>
+                                        </li>
+                                        <li class="flex items-center justify-between bg-slate-50 p-2 rounded hover:bg-yellow-50 transition border border-slate-100">
+                                            <span class="font-semibold text-slate-700">洛谷 (Luogu)</span>
+                                            <span class="text-xs text-gray-500">适合中文学生</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 阶段 3：工程化与框架 -->
+                    <div class="relative">
+                        <span class="absolute -left-11 top-0 bg-blue-100 border-4 border-white text-blue-600 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-sm">3</span>
+                        <div class="bg-white p-6 rounded-xl border border-blue-100 shadow-sm">
+                            <h3 class="text-lg font-bold text-blue-900 mb-2">Phase 3: 工程化与实战 (Engineering)</h3>
+                            <p class="text-sm text-slate-600 mb-4">
+                                离开象牙塔，开始做真正的项目。
+                            </p>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="bg-blue-50 p-4 rounded-lg">
+                                    <h4 class="font-bold text-blue-800 mb-2 text-sm">版本控制 (Git)</h4>
+                                    <p class="text-xs text-slate-600">学会 git add, commit, push, merge。这是团队协作的基石。</p>
+                                </div>
+                                <div class="bg-blue-50 p-4 rounded-lg">
+                                    <h4 class="font-bold text-blue-800 mb-2 text-sm">数据库 (SQL)</h4>
+                                    <p class="text-xs text-slate-600">学会 MySQL 或 PostgreSQL。理解表、索引、事务。</p>
+                                </div>
+                                <div class="bg-blue-50 p-4 rounded-lg">
+                                    <h4 class="font-bold text-blue-800 mb-2 text-sm">选择方向</h4>
+                                    <p class="text-xs text-slate-600">前端 (React/Vue) / 后端 (Spring/Django) / 移动端 / AI</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 界面 6: 必备工具 (Tools) -->
         <div id="view-tools" class="view-section hidden fade-in">
             <div class="max-w-6xl mx-auto">
                 <div class="text-center mb-10">
@@ -764,7 +899,7 @@
                     <p class="text-slate-500 mt-2">工欲善其事，必先利其器</p>
                 </div>
 
-                 <!-- Concept Clarity Section (New) -->
+                 <!-- Concept Clarity Section -->
                 <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-6 mb-12">
                     <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
                         <i class="fa-solid fa-scale-balanced text-indigo-500 mr-2"></i> 概念辨析：编辑器 vs 编译器 vs IDE
@@ -858,7 +993,7 @@
                         </div>
                     </div>
 
-                    <!-- 4. Package Manager (New) -->
+                    <!-- 4. Package Manager -->
                     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-lg transition group">
                         <div class="h-32 bg-pink-600 flex items-center justify-center group-hover:bg-pink-700 transition">
                             <i class="fa-solid fa-cubes text-white text-6xl"></i>
@@ -879,7 +1014,7 @@
                         </div>
                     </div>
 
-                    <!-- 5. Debugger (New) -->
+                    <!-- 5. Debugger -->
                     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-lg transition group">
                         <div class="h-32 bg-teal-600 flex items-center justify-center group-hover:bg-teal-700 transition">
                             <i class="fa-solid fa-bug-slash text-white text-6xl"></i>
@@ -901,7 +1036,7 @@
                         </div>
                     </div>
 
-                    <!-- 6. AI & Community (New) -->
+                    <!-- 6. AI & Community -->
                     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-lg transition group">
                         <div class="h-32 bg-indigo-600 flex items-center justify-center group-hover:bg-indigo-700 transition">
                             <i class="fa-solid fa-users-viewfinder text-white text-6xl"></i>
@@ -930,7 +1065,7 @@
             </div>
         </div>
 
-        <!-- 界面 6: Python 详解 (Python) -->
+        <!-- 界面 7: Python 详解 (Python) -->
         <div id="view-python" class="view-section hidden fade-in">
             <div class="max-w-5xl mx-auto">
                 <!-- Python Hero -->

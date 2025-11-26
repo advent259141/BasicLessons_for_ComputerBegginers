@@ -3,10 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>从细胞到智慧：AI 底层原理互动演示</title>
-    <!-- Tailwind CSS -->
+    <title>从细胞到智慧：AI 底层原理互动演示 (完整版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <style>
@@ -29,13 +27,12 @@
         input[type=range] {
             -webkit-appearance: none; 
             background: transparent; 
-            height: 24px; /* 增加点击区域高度 */
+            height: 24px;
             display: block;
             width: 100%;
             margin: 10px 0;
         }
         
-        /* 轨道样式 */
         input[type=range]::-webkit-slider-runnable-track {
             width: 100%;
             height: 6px;
@@ -53,7 +50,6 @@
             border: 1px solid rgba(0,0,0,0.3);
         }
 
-        /* 滑块头样式 */
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
             height: 20px;
@@ -85,7 +81,6 @@
             background: #3b82f6;
         }
         
-        /* Thinking animation */
         @keyframes pulse-ring {
             0% { transform: scale(0.8); opacity: 0.5; }
             100% { transform: scale(1.3); opacity: 0; }
@@ -98,7 +93,6 @@
 <body>
     <div id="root"></div>
 
-    <!-- 1. 环境变量补丁 -->
     <script>
         window.process = { env: { NODE_ENV: 'production' } };
     </script>
@@ -155,7 +149,8 @@
                 green: { bg: "bg-green-900/20", border: "border-green-500/30", text: "text-green-400" },
                 indigo: { bg: "bg-indigo-900/20", border: "border-indigo-500/30", text: "text-indigo-400" },
                 amber: { bg: "bg-amber-900/20", border: "border-amber-500/30", text: "text-amber-400" },
-                rose: { bg: "bg-rose-900/20", border: "border-rose-500/30", text: "text-rose-400" }
+                rose: { bg: "bg-rose-900/20", border: "border-rose-500/30", text: "text-rose-400" },
+                orange: { bg: "bg-orange-900/20", border: "border-orange-500/30", text: "text-orange-400" }
             };
             const currentStyle = styles[color] || styles.blue;
             return (
@@ -303,6 +298,99 @@
         };
 
         // --- Demo Components ---
+
+        // Step 0: Intro (New)
+        const IntroDemo = ({ onNext }) => {
+            const [activeLayer, setActiveLayer] = useState('llm');
+
+            const layers = [
+                { id: 'ai', label: 'Artificial Intelligence (人工智能)', color: 'bg-gray-700', border: 'border-gray-600', text: 'text-gray-300', size: 380, desc: "宏观概念：让机器展现智慧。\n包含：逻辑推理、规则系统、机器学习等所有技术。" },
+                { id: 'ml', label: 'Machine Learning (机器学习)', color: 'bg-blue-900', border: 'border-blue-500', text: 'text-blue-300', size: 280, desc: "核心转变：不再人工写规则(If-Else)，而是让机器从数据中找规律。\n比如：预测房价、推荐系统。" },
+                { id: 'dl', label: 'Deep Learning (深度学习)', color: 'bg-purple-900', border: 'border-purple-500', text: 'text-purple-300', size: 180, desc: "模拟大脑：利用多层神经网络来学习极其复杂的特征。\n比如：人脸识别、自动驾驶、AlphaGo。" },
+                { id: 'llm', label: 'LLM (大语言模型)', color: 'bg-green-900', border: 'border-green-500', text: 'text-green-300', size: 90, desc: "语言专家：基于 Transformer 架构，阅读了海量文本的深度学习模型。\n比如：ChatGPT, DeepSeek, Claude。" }
+            ];
+
+            return (
+                <div className="max-w-5xl mx-auto">
+                    <Card title="Step 0: 什么是深度学习 & LLM? —— AI 的宏观地图" icon={Brain}>
+                        <div className="space-y-8">
+                            <div className="grid md:grid-cols-2 gap-8 items-center">
+                                {/* Left: Concentric Circles Visualization */}
+                                <div className="h-[400px] flex items-center justify-center relative bg-gray-900/50 rounded-xl border border-gray-700 overflow-hidden">
+                                    <div className="absolute top-4 left-4 text-xs text-gray-500">点击圈层查看定义</div>
+                                    {layers.map((layer, index) => {
+                                        const isActive = activeLayer === layer.id;
+                                        return (
+                                            <motion.div
+                                                key={layer.id}
+                                                className={`absolute rounded-full flex items-start justify-center pt-4 border-2 shadow-2xl cursor-pointer transition-all duration-300 hover:brightness-125
+                                                    ${layer.color} ${isActive ? layer.border : 'border-transparent'} ${isActive ? 'opacity-100 z-10' : 'opacity-60'}
+                                                `}
+                                                style={{ width: layer.size, height: layer.size, zIndex: 10 - index }}
+                                                onClick={() => setActiveLayer(layer.id)}
+                                                whileHover={{ scale: 1.05 }}
+                                                animate={{ scale: isActive ? 1.05 : 1 }}
+                                            >
+                                                <span className={`text-[10px] md:text-xs font-bold ${layer.text} text-center px-2 bg-black/40 rounded backdrop-blur-sm`}>
+                                                    {layer.label}
+                                                </span>
+                                            </motion.div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Right: Explanation */}
+                                <div className="space-y-6">
+                                    <ConceptBox title="AI 的层级关系 (The Hierarchy)" icon={Layers} color="blue">
+                                        <AnimatePresence mode="wait">
+                                            <motion.div
+                                                key={activeLayer}
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -10 }}
+                                                className="min-h-[80px]"
+                                            >
+                                                <h4 className="font-bold text-lg text-white mb-2">
+                                                    {layers.find(l => l.id === activeLayer).label}
+                                                </h4>
+                                                <p className="text-gray-300 whitespace-pre-line leading-relaxed">
+                                                    {layers.find(l => l.id === activeLayer).desc}
+                                                </p>
+                                            </motion.div>
+                                        </AnimatePresence>
+                                    </ConceptBox>
+
+                                    <div className="bg-gray-800/50 border border-gray-700 p-4 rounded-lg">
+                                        <h4 className="font-bold text-white mb-4 flex items-center gap-2">
+                                            <Binary size={18} className="text-orange-400"/> 
+                                            传统编程 vs 深度学习
+                                        </h4>
+                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                            <div className="bg-gray-900 p-3 rounded border border-gray-600">
+                                                <div className="text-orange-400 font-bold mb-1">传统编程 (1.0)</div>
+                                                <div className="font-mono text-[10px] text-gray-500 mb-2">人类定规则</div>
+                                                <div className="text-gray-300">
+                                                    输入 + <span className="text-orange-400">规则(代码)</span> <br/>= 结果
+                                                </div>
+                                            </div>
+                                            <div className="bg-gray-900 p-3 rounded border border-purple-500/50">
+                                                <div className="text-purple-400 font-bold mb-1">深度学习 (2.0)</div>
+                                                <div className="font-mono text-[10px] text-gray-500 mb-2">机器找规律</div>
+                                                <div className="text-gray-300">
+                                                    输入 + <span className="text-purple-400">结果(数据)</span> <br/>= <span className="font-bold text-white">模型(规则)</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <PageFooter onNext={onNext} nextLabel="进入微观世界：神经元" />
+                        </div>
+                    </Card>
+                </div>
+            );
+        };
+
         const NeuronDemo = ({ onNext }) => {
             const [input1, setInput1] = useState(0.5);
             const [weight1, setWeight1] = useState(0.8);
@@ -931,8 +1019,6 @@
         };
 
         const LLMProcessDemo = ({ onNext }) => {
-            // ... (Keep existing LLMProcessDemo logic)
-            // Steps: 0:Start, 1:Tokenization, 2:Embedding+Pos, 3:Self-Attention, 4:FeedForward, 5:Decoding, 6:Output, 7:Done
             const [step, setStep] = useState(0); 
             const [outputWord, setOutputWord] = useState("");
 
@@ -1113,7 +1199,7 @@
             );
         };
 
-const AgentDemo = ({ onNext }) => {
+        const AgentDemo = ({ onNext }) => {
             const [view, setView] = useState("prompt"); // prompt | tools | thinking
             
             // --- Prompt Demo States ---
@@ -1556,17 +1642,18 @@ const AgentDemo = ({ onNext }) => {
 
         // --- App ---
         const App = () => {
-            const [activeTab, setActiveTab] = useState('neuron');
+            const [activeTab, setActiveTab] = useState('intro');
             const tabs = [
+                { id: 'intro', label: 'AI 全景', icon: Brain },
                 { id: 'neuron', label: '神经元', icon: Zap },
                 { id: 'embedding', label: '词向量', icon: Library },
                 { id: 'net', label: '神经网络', icon: Network },
                 { id: 'cnn', label: 'CNN 视觉', icon: Eye },
                 { id: 'rnn', label: 'RNN 记忆', icon: Activity },
                 { id: 'transformer', label: 'Transformer', icon: Cpu },
-                { id: 'params', label: '参数量', icon: Scale }, // NEW 1
+                { id: 'params', label: '参数量', icon: Scale },
                 { id: 'gemini', label: '生成演示', icon: Sparkles },
-                { id: 'agent', label: 'Agent & Thinking', icon: Bot }, // NEW 2
+                { id: 'agent', label: 'Agent & Thinking', icon: Bot },
                 { id: 'recommend', label: '推荐', icon: ThumbsUp }, 
             ];
             const handleNext = (currentId) => {
@@ -1575,7 +1662,7 @@ const AgentDemo = ({ onNext }) => {
                     setActiveTab(tabs[currentIndex + 1].id);
                     window.scrollTo(0, 0);
                 } else {
-                    setActiveTab('neuron');
+                    setActiveTab('intro');
                 }
             };
 
@@ -1626,6 +1713,7 @@ const AgentDemo = ({ onNext }) => {
                                 transition={{ duration: 0.3 }}
                                 className="h-full"
                             >
+                                {activeTab === 'intro' && <IntroDemo onNext={() => handleNext('intro')} />}
                                 {activeTab === 'neuron' && <NeuronDemo onNext={() => handleNext('neuron')} />}
                                 {activeTab === 'embedding' && <EmbeddingDemo onNext={() => handleNext('embedding')} />}
                                 {activeTab === 'net' && <NeuralNetDemo onNext={() => handleNext('net')} />}
