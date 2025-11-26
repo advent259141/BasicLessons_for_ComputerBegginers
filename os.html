@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Windows 进阶指南：GUI 之下 (完整修复版)</title>
+    <title>Windows 进阶指南：核心机制深度解析</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -51,6 +51,27 @@
         }
         .animate-hint {
             animation: bounce-short 2s infinite;
+        }
+
+        /* 驱动模拟：像素化效果 */
+        .pixelated-blur {
+            filter: blur(8px) contrast(150%);
+            transform: scale(1.1);
+            transition: all 1s ease;
+        }
+        .clear-view {
+            filter: blur(0) contrast(100%);
+            transform: scale(1);
+            transition: all 1s ease;
+        }
+
+        /* 蓝屏动画 */
+        @keyframes sad-face-zoom {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .bsod-enter {
+            animation: sad-face-zoom 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
         }
     </style>
 </head>
@@ -122,37 +143,22 @@
                         ))}
                         <div className="animate-pulse">_</div>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div 
-                            onClick={() => runCommand('ping 8.8.8.8')}
-                            className="p-3 bg-gray-800 hover:bg-gray-700 rounded border border-gray-600 cursor-pointer flex flex-col gap-1"
-                        >
-                            <span className="font-bold text-gray-300">简单任务 (Ping)</span>
-                            <span className="text-xs text-gray-400">测试网络通不通，简单粗暴。</span>
-                            <code className="text-xs bg-black/30 p-1 rounded mt-1 text-green-400">&gt; ping 8.8.8.8</code>
-                        </div>
-                        <div 
-                            onClick={() => {
-                                if(mode !== 'ps') { alert('请先切换到 PowerShell！\nCMD 听不懂这么高级的咒语。'); return; }
-                                runCommand('Get-ChildItem *.docx | Rename-Item -NewName { $_.Name -replace "2023","2024" }');
-                            }}
-                            className={`p-3 rounded border cursor-pointer flex flex-col gap-1 ${mode === 'ps' ? 'bg-blue-900/30 border-blue-600 hover:bg-blue-900/50' : 'bg-gray-800/50 border-gray-700 opacity-50'}`}
-                        >
-                            <span className="font-bold text-blue-300">自动化魔法 (批量改名)</span>
-                            <span className="text-xs text-gray-400">一行代码修改1000个文件名。</span>
-                            <code className="text-xs bg-black/30 p-1 rounded mt-1 text-blue-200">&gt; Get-ChildItem...</code>
-                        </div>
+                     <div className="p-2 bg-gray-800 rounded border border-gray-700 text-xs text-gray-400">
+                         💡 提示：CMD 适合简单的文件管理，PowerShell 则是系统管理员的自动化神器。
                     </div>
                 </div>
             );
         };
 
-        // --- 2. 文件系统 (分区、盘符与格式化) ---
+        // --- 2. 文件系统 (分区、盘符与删除原理) ---
         const FileSystemSection = () => {
             const [showExt, setShowExt] = useState(false);
             const [driveStatus, setDriveStatus] = useState('ready');
             const [progress, setProgress] = useState(0);
+
+            // Deletion Lab State
+            // 0: Init, 1: Created, 2: Deleted, 3: Overwritten
+            const [delStep, setDelStep] = useState(0); 
 
             const startFormat = () => {
                 if (driveStatus === 'formatting') return;
@@ -175,186 +181,648 @@
             };
             
             return (
-                <div className="space-y-8 h-full pr-2">
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between bg-slate-800 p-4 rounded-lg border border-slate-700">
+                <div className="space-y-6 h-full pr-2 overflow-y-auto win-scroll">
+                    {/* 1. 删除原理 (新增) */}
+                    <div className="bg-slate-800 p-5 rounded-lg border border-slate-700">
+                        <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                            <span className="text-red-400">🗑️</span> 数据删除与恢复实验室 <span className="text-xs bg-red-900/50 px-2 py-0.5 rounded text-red-200 ml-2">New!</span>
+                        </h3>
+                        <div className="flex flex-col gap-4">
+                            <div className="text-xs text-gray-400">
+                                当你点击“删除”并清空回收站时，文件真的消失了吗？观察下面的 <strong>MFT (文件登记表)</strong> 和 <strong>磁盘数据区</strong> 的变化。
+                            </div>
+                            
+                            <div className="flex gap-4 items-stretch">
+                                {/* MFT 模拟 */}
+                                <div className="w-1/3 bg-gray-900 border border-gray-600 rounded p-3 flex flex-col gap-2">
+                                    <div className="text-xs font-bold text-blue-400 border-b border-gray-700 pb-1">MFT (登记表)</div>
+                                    {delStep === 0 && <div className="text-xs text-gray-500 italic">空闲</div>}
+                                    {(delStep === 1 || delStep === 2) && (
+                                        <div className={`text-xs p-1 rounded border ${delStep === 1 ? 'bg-green-900/30 border-green-600 text-green-400' : 'bg-red-900/20 border-red-800 text-gray-500 line-through'}`}>
+                                            📄 secret.txt<br/>
+                                            📍 Loc: 01-03
+                                        </div>
+                                    )}
+                                    {delStep === 3 && (
+                                        <div className="text-xs p-1 rounded border bg-yellow-900/30 border-yellow-600 text-yellow-400">
+                                            🎬 movie.mp4<br/>
+                                            📍 Loc: 01-04
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* 磁盘扇区模拟 */}
+                                <div className="flex-1 bg-gray-900 border border-gray-600 rounded p-3">
+                                    <div className="text-xs font-bold text-gray-400 mb-2">物理磁盘扇区 (Physical Blocks)</div>
+                                    <div className="flex gap-1">
+                                        {[1,2,3,4,5,6].map(i => {
+                                            let bg = "bg-gray-700"; // Empty
+                                            let text = "";
+                                            
+                                            if (delStep === 1 && i <= 3) { bg = "bg-green-600"; text="DATA"; }
+                                            if (delStep === 2 && i <= 3) { bg = "bg-green-900/40 border border-green-800 border-dashed text-gray-500"; text="DATA"; } // Deleted but data remains
+                                            if (delStep === 3 && i <= 4) { bg = "bg-yellow-600"; text="NEW"; } // Overwritten
+
+                                            return (
+                                                <div key={i} className={`h-12 flex-1 rounded flex items-center justify-center text-[10px] font-mono transition-all duration-500 ${bg}`}>
+                                                    {text}
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                    <div className="mt-2 text-xs h-8 text-gray-300 leading-tight">
+                                        {delStep === 0 && "硬盘是空的。"}
+                                        {delStep === 1 && "文件已写入。登记表记录了位置，扇区存入了数据。"}
+                                        {delStep === 2 && <span className="text-green-400">关键时刻！登记表删除了记录，标记扇区为“空闲”，但<strong>数据并未被抹除</strong>。这就是为什么能恢复！</span>}
+                                        {delStep === 3 && <span className="text-red-400">新文件写入并覆盖了旧位置。此时旧数据彻底损坏，无法恢复。</span>}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                                <button onClick={() => setDelStep(1)} disabled={delStep !== 0} className="px-3 py-1 bg-blue-600 disabled:opacity-30 disabled:cursor-not-allowed rounded text-xs text-white">1. 创建文件</button>
+                                <button onClick={() => setDelStep(2)} disabled={delStep !== 1} className="px-3 py-1 bg-red-600 disabled:opacity-30 disabled:cursor-not-allowed rounded text-xs text-white">2. 删除文件</button>
+                                <button onClick={() => setDelStep(3)} disabled={delStep !== 2} className="px-3 py-1 bg-yellow-600 disabled:opacity-30 disabled:cursor-not-allowed rounded text-xs text-black font-bold">3. 写入新文件 (覆盖)</button>
+                                <button onClick={() => setDelStep(0)} className="px-3 py-1 bg-gray-600 rounded text-xs text-white ml-auto">重置</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 2. 扩展名实验 */}
+                    <div className="bg-slate-800 p-5 rounded-lg border border-slate-700">
+                        <div className="flex items-center justify-between mb-3">
                             <div>
-                                <h3 className="text-lg font-bold text-white">1. 文件扩展名掩护实验</h3>
-                                <p className="text-sm text-gray-400">Windows 默认会隐藏已知后缀名，这很危险。</p>
+                                <h3 className="text-lg font-bold text-white">2. 扩展名掩护实验</h3>
                             </div>
                             <label className="flex items-center cursor-pointer">
-                                <div className="mr-3 text-sm font-medium text-gray-300">
+                                <div className="mr-3 text-xs font-medium text-gray-300">
                                     {showExt ? "扩展名: [已显示]" : "扩展名: [已隐藏]"}
                                 </div>
                                 <div className="relative">
                                     <input type="checkbox" className="sr-only" checked={showExt} onChange={() => setShowExt(!showExt)} />
-                                    <div className={`block w-14 h-8 rounded-full transition-colors ${showExt ? 'bg-green-500' : 'bg-gray-600'}`}></div>
-                                    <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${showExt ? 'transform translate-x-6' : ''}`}></div>
+                                    <div className={`block w-10 h-6 rounded-full transition-colors ${showExt ? 'bg-green-500' : 'bg-gray-600'}`}></div>
+                                    <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${showExt ? 'transform translate-x-4' : ''}`}></div>
                                 </div>
                             </label>
                         </div>
-
-                        <div className="grid grid-cols-2 gap-6">
-                            <div className={`p-4 rounded-lg border flex items-center gap-4 transition-colors group relative overflow-hidden ${showExt ? 'bg-red-900/20 border-red-500' : 'bg-slate-800 border-slate-700'}`}>
-                                {showExt && <div className="absolute top-0 right-0 bg-red-600 text-white text-xs px-2 py-1">警告</div>}
-                                <div className="text-4xl group-hover:scale-110 transition-transform">
-                                    {showExt ? '👾' : '🖼️'}
-                                </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className={`p-3 rounded-lg border flex items-center gap-3 transition-colors relative overflow-hidden ${showExt ? 'bg-red-900/20 border-red-500' : 'bg-slate-900 border-slate-700'}`}>
+                                {showExt && <div className="absolute top-0 right-0 bg-red-600 text-white text-[10px] px-1">VIRUS</div>}
+                                <div className="text-3xl">🖼️</div>
                                 <div>
-                                    <div className="text-white font-mono text-base">
+                                    <div className="text-white font-mono text-sm">
                                         美女照片{showExt ? <span className="text-red-400 font-bold bg-red-900/30 px-1 rounded">.exe</span> : <span className="text-gray-400 opacity-0">.jpg</span>}
                                     </div>
-                                    <div className={`text-xs mt-1 ${showExt ? 'text-red-400 font-bold' : 'text-gray-500'}`}>
-                                        {showExt ? "实际是：可执行程序 (病毒!)" : "看起来是：图片"}
+                                    <div className="text-[10px] text-gray-500 mt-1">
+                                        {showExt ? "类型：应用程序 (.exe)" : "类型：JPG 文件"}
                                     </div>
                                 </div>
                             </div>
-                            <div className="bg-slate-800 p-4 rounded-lg border border-slate-700 flex items-center gap-4">
-                                <div className="text-4xl">📄</div>
+                            <div className="bg-slate-900 p-3 rounded-lg border border-slate-700 flex items-center gap-3">
+                                <div className="text-3xl">📄</div>
                                 <div>
-                                    <div className="text-white font-mono text-base">
-                                        毕业论文{showExt && <span className="text-yellow-400 font-bold bg-yellow-900/30 px-1 rounded">.docx</span>}
+                                    <div className="text-white font-mono text-sm">
+                                        工作报告{showExt && <span className="text-yellow-400 font-bold bg-yellow-900/30 px-1 rounded">.docx</span>}
                                     </div>
-                                    <div className="text-xs text-gray-500 mt-1">Microsoft Word 文档</div>
+                                    <div className="text-[10px] text-gray-500 mt-1">类型：Word 文档</div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-slate-800 p-6 rounded-lg border border-slate-700">
-                        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2 border-b border-gray-700 pb-2">
-                            <span className="text-2xl">💽</span> 硬盘分区与格式化实验室
+                    {/* 3. 分区与格式化 */}
+                    <div className="bg-slate-800 p-5 rounded-lg border border-slate-700">
+                        <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                            <span className="text-2xl">💽</span> 硬盘分区与格式化
                         </h3>
-                        <div className="mb-6">
-                            <div className="text-sm text-gray-400 mb-2 flex justify-between">
-                                <span>物理硬盘 (Disk 0) - 1TB SSD</span>
-                                <span className="text-xs bg-gray-700 px-2 rounded text-gray-300">比喻：一套房子被隔成了两个房间</span>
-                            </div>
-                            <div className="flex h-20 w-full rounded-lg overflow-hidden border-2 border-gray-600 font-mono text-xs shadow-lg">
-                                <div className="w-1/3 bg-blue-900/80 flex flex-col items-center justify-center text-white border-r-2 border-gray-800 relative group cursor-help transition-all hover:bg-blue-800">
-                                    <span className="font-bold text-xl">C:</span>
-                                    <span className="text-blue-200">系统分区 (NTFS)</span>
+                        <div className="mb-4">
+                            <div className="flex h-16 w-full rounded-lg overflow-hidden border-2 border-gray-600 font-mono text-xs shadow-lg">
+                                <div className="w-1/3 bg-blue-900/80 flex flex-col items-center justify-center text-white border-r-2 border-gray-800 hover:bg-blue-800">
+                                    <span className="font-bold text-lg">C:</span>
+                                    <span className="text-blue-200">系统</span>
                                 </div>
-                                <div className="flex-1 bg-gray-700/50 flex flex-col items-center justify-center text-gray-200 relative transition-all">
+                                <div className="flex-1 bg-gray-700/50 flex flex-col items-center justify-center text-gray-200 relative">
                                     {driveStatus === 'formatting' ? (
                                         <div className="w-full px-8">
-                                            <div className="text-center mb-2 text-yellow-400 font-bold animate-pulse">
-                                                正在推平地面... {progress}%
-                                            </div>
-                                            <div className="w-full bg-gray-800 h-3 rounded-full overflow-hidden border border-gray-600">
+                                            <div className="text-center mb-1 text-yellow-400 font-bold">格式化中... {progress}%</div>
+                                            <div className="w-full bg-gray-800 h-2 rounded-full overflow-hidden border border-gray-600">
                                                 <div className="bg-yellow-400 h-full transition-all duration-100 ease-linear" style={{width: `${progress}%`}}></div>
                                             </div>
                                         </div>
                                     ) : driveStatus === 'empty' ? (
-                                        <div className="flex flex-col items-center animate-bounce-short">
-                                            <span className="font-bold text-xl text-gray-300">D:</span>
-                                            <span className="text-green-400 font-bold">可用空间 100%</span>
+                                        <div className="flex flex-col items-center">
+                                            <span className="font-bold text-lg text-gray-300">D:</span>
+                                            <span className="text-green-400 font-bold">空闲</span>
                                         </div>
                                     ) : (
                                         <>
-                                            <span className="font-bold text-xl">D:</span>
-                                            <span>数据分区</span>
-                                            <div className="flex gap-2 mt-2 opacity-60 text-lg">
-                                                <span>📄</span><span>📁</span><span>🎵</span><span>🎮</span>
-                                            </div>
+                                            <span className="font-bold text-lg">D:</span>
+                                            <span>数据</span>
                                         </>
                                     )}
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-black/40 p-5 rounded border border-red-500/20 flex flex-col md:flex-row gap-6 items-start">
-                            <div className="flex-1">
-                                <h4 className="text-red-400 font-bold text-sm mb-2 flex items-center gap-2">
-                                    <span className="text-lg">⚠️</span> 什么是“格式化 (Format)”？
-                                </h4>
-                                <p className="text-xs text-gray-300 leading-relaxed mb-3">
-                                    许多小白以为格式化只是“删除所有文件”。错！<br/>
-                                    格式化的本质是：<strong className="text-white border-b border-white/30">把仓库里的货架全部拆除，地板铲平，然后重新画停车位（文件系统）</strong>。
-                                </p>
-                            </div>
-                            <div className="flex flex-col gap-3 min-w-[120px]">
-                                <button 
-                                    onClick={startFormat}
-                                    disabled={driveStatus !== 'ready'}
-                                    className={`px-4 py-3 rounded font-bold text-xs transition-all transform active:scale-95 flex items-center justify-center gap-2 ${driveStatus === 'ready' ? 'bg-red-600 hover:bg-red-500 text-white shadow-lg' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
-                                >
-                                    {driveStatus === 'formatting' ? "⏳ 施工中..." : "🧹 格式化 D 盘"}
-                                </button>
-                                {driveStatus === 'empty' && (
-                                    <button onClick={resetDrive} className="text-xs text-blue-400 hover:text-blue-300 hover:underline text-center">
-                                        ↺ 重置
-                                    </button>
-                                )}
-                            </div>
+                        <div className="flex justify-end gap-2">
+                            <button 
+                                onClick={startFormat}
+                                disabled={driveStatus !== 'ready'}
+                                className={`px-4 py-2 rounded font-bold text-xs transition-all ${driveStatus === 'ready' ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}`}
+                            >
+                                {driveStatus === 'formatting' ? "⏳" : "🧹 格式化 D 盘"}
+                            </button>
+                            {driveStatus === 'empty' && (
+                                <button onClick={resetDrive} className="text-xs text-blue-400 hover:underline px-2">重置</button>
+                            )}
                         </div>
                     </div>
                 </div>
             );
         };
 
-        // --- 3. 注册表 (DNA) ---
-        const RegistrySection = () => {
-            const [speed, setSpeed] = useState(10);
-            
+        // --- 3. 路径实验室 (新增 - 重点讲解为什么不能随便挪动) ---
+        const PathSection = () => {
+            const [pathMode, setPathMode] = useState('abs');
+            const [gameFolderState, setGameFolderState] = useState('installed'); // installed, moved
+            const [systemLog, setSystemLog] = useState([]);
+
+            const addToLog = (msg, type='info') => {
+                setSystemLog(prev => [...prev, {msg, type}]);
+            };
+
+            const runGame = () => {
+                if (gameFolderState === 'installed') {
+                    addToLog("正在启动 'Game.exe'...", 'info');
+                    addToLog("读取注册表路径: C:\\Program Files\\Game... 成功", 'success');
+                    addToLog("加载 config.ini... 成功", 'success');
+                    addToLog(">>> 游戏启动成功！🎮", 'success');
+                } else {
+                    addToLog("正在启动快捷方式...", 'info');
+                    addToLog("错误: 找不到目标 'C:\\Program Files\\Game\\Game.exe'", 'error');
+                    addToLog("读取注册表... 路径指向不存在的位置", 'error');
+                    addToLog(">>> 启动失败: 系统找不到指定的文件。", 'error');
+                }
+            };
+
+            const moveFolder = () => {
+                if (gameFolderState === 'installed') {
+                    setGameFolderState('moved');
+                    addToLog("用户操作: 将 'Game' 文件夹剪切粘贴到了 'D:\\Downloads'", 'warning');
+                    addToLog("警告: 注册表、快捷方式、配置文件并未更新！", 'warning');
+                } else {
+                    setGameFolderState('installed');
+                    addToLog("用户操作: 将文件夹移回原位", 'success');
+                    addToLog("恢复正常。", 'success');
+                }
+            };
+
             return (
-                <div className="flex gap-6 h-full">
-                    <div className="flex-1 bg-slate-800 rounded-lg p-6 border border-slate-700 flex flex-col items-center justify-center gap-8">
-                        <div className="text-center">
-                            <h4 className="text-gray-400 mb-2">系统当前表现</h4>
-                            <div className="relative w-32 h-32 flex items-center justify-center border-4 border-gray-600 rounded-full">
-                                <div 
-                                    className="w-2 h-16 bg-cyan-400 origin-bottom absolute bottom-1/2 left-1/2 -ml-1 rounded-full"
-                                    style={{ transform: `rotate(${speed * 18}deg)`, transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
-                                ></div>
-                                <div className="w-4 h-4 bg-white rounded-full absolute z-10"></div>
-                            </div>
-                            <div className="mt-4 font-mono text-xl text-cyan-400">Value: {speed}</div>
+                <div className="h-full flex flex-col gap-6">
+                    {/* Part 1: 路径类型 */}
+                    <div className="bg-slate-800 rounded-lg p-5 border border-slate-700">
+                        <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                            <span className="text-yellow-400">📂</span> 路径 (Path) 基础
+                        </h3>
+                        <div className="flex gap-2 mb-4">
+                            <button onClick={() => setPathMode('abs')} className={`px-3 py-1 rounded text-xs transition-colors ${pathMode === 'abs' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400'}`}>绝对路径</button>
+                            <button onClick={() => setPathMode('rel')} className={`px-3 py-1 rounded text-xs transition-colors ${pathMode === 'rel' ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-400'}`}>相对路径</button>
+                            <button onClick={() => setPathMode('unc')} className={`px-3 py-1 rounded text-xs transition-colors ${pathMode === 'unc' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-400'}`}>UNC (网络)</button>
                         </div>
-                        <p className="text-xs text-gray-500 text-center max-w-xs">
-                            改变右侧注册表的值，系统行为（表盘）会立即发生根本性改变。
-                        </p>
+                        <div className="bg-black/50 p-4 rounded border border-gray-600 font-mono text-sm">
+                            {pathMode === 'abs' && (
+                                <div>
+                                    <span className="text-blue-400">C:</span><span className="text-gray-300">\Users\Admin\Music\</span><span className="text-green-400">Song.mp3</span>
+                                    <div className="mt-2 text-xs text-gray-400 border-t border-gray-700 pt-2">
+                                        📍 就像经纬度坐标。无论你在哪里，这个地址都指向同一个唯一的房间。
+                                    </div>
+                                </div>
+                            )}
+                            {pathMode === 'rel' && (
+                                <div>
+                                    <span className="text-purple-400">..\</span><span className="text-gray-300">Pictures\</span><span className="text-green-400">Image.jpg</span>
+                                    <div className="mt-2 text-xs text-gray-400 border-t border-gray-700 pt-2">
+                                        📍 就像指路：“出门左转”。`..` 代表向上一级。如果你换了位置，这个指引可能就失效了。
+                                    </div>
+                                </div>
+                            )}
+                            {pathMode === 'unc' && (
+                                <div>
+                                    <span className="text-green-400">\\NasServer</span><span className="text-gray-300">\Public\Files\</span><span className="text-yellow-400">Setup.exe</span>
+                                    <div className="mt-2 text-xs text-gray-400 border-t border-gray-700 pt-2">
+                                        📍 网络路径。不需要盘符，直接访问局域网内的其他电脑资源。
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    <div className="flex-1 bg-white text-black font-sans text-xs flex flex-col border border-gray-400 shadow-xl">
-                        <div className="bg-gray-100 p-1 border-b flex items-center gap-2">
-                            <span className="text-yellow-600">💾</span> 注册表编辑器
-                        </div>
-                        <div className="flex flex-1 overflow-hidden">
-                            <div className="w-1/3 border-r border-gray-200 p-2 overflow-y-auto">
-                                <div className="pl-2">📂 Computer</div>
-                                <div className="pl-4">📂 HKEY_CURRENT_USER</div>
-                                <div className="pl-6">📂 Control Panel</div>
-                                <div className="pl-8 bg-blue-100 border border-blue-300 text-blue-800 px-1">📂 Mouse</div>
+                    {/* Part 2: 为什么不能随便移动 */}
+                    <div className="flex-1 bg-slate-800 rounded-lg p-5 border border-slate-700 flex flex-col">
+                        <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                            <span className="text-red-400">🚫</span> 为什么安装好的软件不能随便移？
+                        </h3>
+                        <div className="flex flex-1 gap-4">
+                            <div className="w-1/3 bg-slate-900 rounded border border-gray-600 p-2 relative">
+                                <div className="text-xs text-center text-gray-400 mb-2 border-b border-gray-700 pb-1">C:\Program Files</div>
+                                {gameFolderState === 'installed' ? (
+                                    <div className="bg-blue-600/20 border border-blue-500 p-2 rounded text-center cursor-grab active:cursor-grabbing transition-all hover:bg-blue-600/40">
+                                        <div className="text-2xl">🎮</div>
+                                        <div className="text-xs">Game Folder</div>
+                                    </div>
+                                ) : (
+                                    <div className="h-16 border-2 border-dashed border-gray-700 rounded flex items-center justify-center text-xs text-gray-600">
+                                        (空)
+                                    </div>
+                                )}
                             </div>
-                            <div className="flex-1 p-2 bg-white">
-                                <div className="grid grid-cols-3 font-bold border-b mb-2 pb-1 text-gray-500">
+                            
+                            <div className="flex flex-col justify-center gap-2">
+                                <button onClick={moveFolder} className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs">
+                                    {gameFolderState === 'installed' ? "👉 强行移到 D 盘" : "👈 移回 C 盘"}
+                                </button>
+                            </div>
+
+                            <div className="w-1/3 bg-slate-900 rounded border border-gray-600 p-2 relative">
+                                <div className="text-xs text-center text-gray-400 mb-2 border-b border-gray-700 pb-1">D:\Downloads</div>
+                                {gameFolderState === 'moved' ? (
+                                    <div className="bg-yellow-600/20 border border-yellow-500 p-2 rounded text-center transition-all">
+                                        <div className="text-2xl">🎮</div>
+                                        <div className="text-xs">Game Folder</div>
+                                    </div>
+                                ) : (
+                                    <div className="h-16 border-2 border-dashed border-gray-700 rounded flex items-center justify-center text-xs text-gray-600">
+                                        (空)
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="mt-4 flex gap-4">
+                            <div className="flex-1">
+                                <div className="text-xs font-bold text-gray-300 mb-1">桌面快捷方式</div>
+                                <div 
+                                    onClick={runGame}
+                                    className="w-16 h-16 bg-blue-900/50 hover:bg-blue-800 border border-blue-400 rounded flex flex-col items-center justify-center cursor-pointer relative group"
+                                >
+                                    <div className="text-2xl">🚀</div>
+                                    <div className="text-[10px] text-center w-full bg-black/50 absolute bottom-0">双击启动</div>
+                                    <div className="absolute top-0 right-0 bg-white text-black text-[8px] px-1 rounded-bl">Shortcut</div>
+                                </div>
+                            </div>
+                            <div className="flex-[2] bg-black p-2 font-mono text-[10px] text-green-400 border border-gray-600 rounded overflow-y-auto h-24">
+                                {systemLog.map((log, i) => (
+                                    <div key={i} className={log.type === 'error' ? 'text-red-400' : log.type === 'warning' ? 'text-yellow-400' : ''}>
+                                        {log.msg}
+                                    </div>
+                                ))}
+                                {systemLog.length === 0 && <span className="text-gray-600">等待操作...</span>}
+                            </div>
+                        </div>
+                        
+                        <div className="mt-3 text-xs text-gray-400 border-t border-gray-700 pt-2">
+                            <strong>原因解析：</strong>
+                            <ul className="list-disc pl-4 mt-1 space-y-1">
+                                <li><strong>注册表死链：</strong>安装时，写入了 "InstallPath" = "C:\..."，移动后注册表不会自动更新。</li>
+                                <li><strong>快捷方式失效：</strong>快捷方式只是一个指路牌，它指的地方如果空了，就会报错。</li>
+                                <li><strong>卸载残留：</strong>卸载程序去原位置找文件删除，结果找不到，导致垃圾文件滞留。</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 4. 驱动实验室 (新增 - 重点讲解怎么装驱动) ---
+        const DriverSection = () => {
+            const [driverStatus, setDriverStatus] = useState('missing'); // missing, installing, installed
+            const [installMethod, setInstallMethod] = useState('windows_update'); // windows_update, website, device_manager
+            const [showBSOD, setShowBSOD] = useState(false);
+
+            const handleInstall = () => {
+                if(driverStatus === 'installed') return;
+                setDriverStatus('installing');
+                setTimeout(() => {
+                    setDriverStatus('installed');
+                }, 2000);
+            };
+
+            const triggerBSOD = () => {
+                setShowBSOD(true);
+                setTimeout(() => {
+                    setShowBSOD(false);
+                    setDriverStatus('missing');
+                }, 4000);
+            };
+
+            return (
+                <div className="h-full flex flex-col gap-6 relative">
+                    {/* BSOD Overlay */}
+                    {showBSOD && (
+                        <div className="absolute inset-0 z-50 bg-[#0078d7] text-white p-12 font-light flex flex-col gap-8 bsod-enter overflow-hidden">
+                            <div className="text-[100px] leading-none">:(</div>
+                            <div className="text-2xl">
+                                你的电脑遇到问题，需要重新启动。<br/>
+                                <span className="text-sm">错误代码: DRIVER_IRQL_NOT_LESS_OR_EQUAL (驱动程序冲突)</span>
+                            </div>
+                            <div className="text-sm mt-auto animate-pulse">100% 完成</div>
+                        </div>
+                    )}
+
+                    <div className="flex gap-6 h-full">
+                        {/* 左侧：原理与模拟 */}
+                        <div className="flex-1 flex flex-col gap-4">
+                            <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
+                                <h3 className="font-bold text-white mb-2 flex items-center gap-2">
+                                    <span className="text-cyan-400">🎧</span> 驱动程序：硬件翻译官
+                                </h3>
+                                <div className="text-xs text-gray-300 space-y-2">
+                                    <div className="flex items-center gap-2 bg-slate-900 p-2 rounded">
+                                        <span className="text-blue-300">Windows OS:</span> 
+                                        <span className="italic">"请在屏幕上画一个圆。" (英语)</span>
+                                    </div>
+                                    <div className="text-center text-gray-500">⬇️ 只有驱动听得懂这两边 ⬇️</div>
+                                    <div className="flex items-center gap-2 bg-slate-900 p-2 rounded">
+                                        <span className="text-green-300">显卡硬件:</span> 
+                                        <span className="italic">"0x1F 0xB2..." (火星语/机器码)</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex-1 bg-black rounded-lg border-4 border-gray-600 relative overflow-hidden group">
+                                <div className="absolute top-0 left-0 w-full bg-gray-800 text-[10px] text-gray-400 p-1 z-10 flex justify-between">
+                                    <span>Display Preview</span>
+                                    <span>{driverStatus === 'installed' ? 'GPU Accelerated' : 'Microsoft Basic Render'}</span>
+                                </div>
+                                <img 
+                                    src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80" 
+                                    alt="Game Scene" 
+                                    className={`w-full h-full object-cover ${driverStatus === 'installed' ? 'clear-view' : 'pixelated-blur'}`}
+                                />
+                                {driverStatus === 'missing' && (
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <div className="bg-black/70 p-4 text-center border border-yellow-500/50 rounded">
+                                            <div className="text-yellow-400 font-bold mb-1">⚠️ 画面模糊/卡顿？</div>
+                                            <div className="text-xs text-white">缺少显卡驱动</div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* 右侧：怎么安装 */}
+                        <div className="flex-1 bg-slate-800 rounded-lg p-5 border border-slate-700 flex flex-col">
+                            <h3 className="font-bold text-white mb-4">🛠️ 如何正确安装驱动？</h3>
+                            
+                            <div className="flex gap-2 mb-4 bg-slate-900 p-1 rounded">
+                                <button 
+                                    onClick={() => setInstallMethod('windows_update')}
+                                    className={`flex-1 py-2 text-xs rounded transition-colors ${installMethod === 'windows_update' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    方法1: 系统更新<br/>(推荐小白)
+                                </button>
+                                <button 
+                                    onClick={() => setInstallMethod('website')}
+                                    className={`flex-1 py-2 text-xs rounded transition-colors ${installMethod === 'website' ? 'bg-green-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    方法2: 官网下载<br/>(推荐玩家)
+                                </button>
+                                <button 
+                                    onClick={() => setInstallMethod('device_manager')}
+                                    className={`flex-1 py-2 text-xs rounded transition-colors ${installMethod === 'device_manager' ? 'bg-gray-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    方法3: 设备管理<br/>(补漏用)
+                                </button>
+                            </div>
+
+                            <div className="flex-1 bg-slate-900 rounded p-4 border border-gray-600 mb-4">
+                                {installMethod === 'windows_update' && (
+                                    <div className="text-xs text-gray-300">
+                                        <div className="font-bold text-white text-sm mb-2">Windows Update</div>
+                                        <p>最安全、最省心。系统会自动识别硬件并从微软服务器拉取认证过的驱动。</p>
+                                        <div className="mt-4 p-2 bg-black rounded border border-gray-700 flex items-center gap-3">
+                                            <span className="text-xl">🔄</span>
+                                            <div>
+                                                <div>NVIDIA - Display - 31.0.15...</div>
+                                                <div className="text-gray-500">正在等待下载...</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                {installMethod === 'website' && (
+                                    <div className="text-xs text-gray-300">
+                                        <div className="font-bold text-white text-sm mb-2">硬件官网 (如 NVIDIA/AMD/Intel)</div>
+                                        <p>版本最新，性能最强，功能最全。玩大型游戏必选。</p>
+                                        <div className="mt-4 p-2 bg-green-900/30 rounded border border-green-700/50 text-green-300">
+                                            正在下载: GeForce_Game_Ready_Driver.exe
+                                        </div>
+                                        <p className="mt-2 text-red-400">🚫 警告：千万不要去所谓“驱动xx精灵”下载，容易带全家桶病毒。</p>
+                                    </div>
+                                )}
+                                {installMethod === 'device_manager' && (
+                                    <div className="text-xs text-gray-300">
+                                        <div className="font-bold text-white text-sm mb-2">设备管理器</div>
+                                        <p>右键设备 -&gt; 更新驱动程序。适合解决某些冷门硬件无法识别的问题。</p>
+                                        <div className="mt-4 p-2 bg-white text-black rounded border border-gray-400">
+                                            🪟 Windows 正在在线搜索驱动程序...
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {driverStatus === 'installed' ? (
+                                <div className="space-y-3">
+                                    <div className="bg-green-600 text-white p-2 rounded text-center text-sm font-bold animate-pulse-once">
+                                        ✓ 驱动安装成功
+                                    </div>
+                                    <button onClick={triggerBSOD} className="w-full border border-red-500/50 text-red-400 p-2 rounded text-xs hover:bg-red-900/30 transition-colors">
+                                        (测试) 模拟安装了错误版本的驱动
+                                    </button>
+                                </div>
+                            ) : (
+                                <button 
+                                    onClick={handleInstall}
+                                    disabled={driverStatus === 'installing'}
+                                    className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                                >
+                                    {driverStatus === 'installing' ? '正在安装...' : '立即安装驱动'}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 5. 注册表 (Registry) ---
+        const RegistrySection = () => {
+            const [themeValue, setThemeValue] = useState(1); // 1 = Light, 0 = Dark
+            const [selectedPath, setSelectedPath] = useState('Computer');
+            const [selectedKey, setSelectedKey] = useState(null);
+
+            // 模拟注册表结构 (用于展示，实际只用作静态渲染参考)
+            const treeData = {
+                name: "Computer",
+                children: [
+                    { name: "HKEY_CLASSES_ROOT", desc: "文件类型关联" },
+                    { 
+                        name: "HKEY_CURRENT_USER", 
+                        desc: "当前登录用户的配置 (你)", 
+                        isOpen: true,
+                        children: [
+                            { name: "Software", isOpen: true, children: [
+                                { name: "Microsoft", isOpen: true, children: [
+                                    { name: "Windows", isOpen: true, children: [
+                                        { name: "Personalize", isTarget: true }
+                                    ]}
+                                ]}
+                            ]}
+                        ] 
+                    },
+                    { name: "HKEY_LOCAL_MACHINE", desc: "本机全局配置 (所有人)" },
+                    { name: "HKEY_USERS", desc: "所有用户配置文件" },
+                    { name: "HKEY_CURRENT_CONFIG", desc: "当前硬件配置" },
+                ]
+            };
+
+            const toggleTheme = (val) => {
+                const num = parseInt(val);
+                if (!isNaN(num) && (num === 0 || num === 1)) {
+                     setThemeValue(num);
+                }
+            };
+
+            return (
+                <div className="flex gap-6 h-full text-xs">
+                    {/* 左侧：解释与导航 */}
+                    <div className="w-1/3 flex flex-col gap-4">
+                        <div className="bg-slate-800 p-4 rounded-lg border border-slate-700">
+                            <h3 className="font-bold text-white mb-2 flex items-center gap-2">
+                                <span className="text-purple-400">🧬</span> 注册表 (Registry)
+                            </h3>
+                            <p className="text-gray-400 mb-2">
+                                Windows 的核心数据库。这里不存文件，只存<strong>配置</strong>。
+                                它是树状结构的（像文件夹一样）。
+                            </p>
+                            <div className="bg-slate-900 p-2 rounded border border-gray-600 space-y-2">
+                                <div className="text-green-400 font-bold">两大巨头：</div>
+                                <div>
+                                    <span className="text-yellow-400 font-bold">HKCU</span> (Current User)<br/>
+                                    <span className="text-gray-500">只影响你自己。比如你的壁纸、你的鼠标速度。</span>
+                                </div>
+                                <div>
+                                    <span className="text-red-400 font-bold">HKLM</span> (Local Machine)<br/>
+                                    <span className="text-gray-500">影响这台电脑上所有人。比如安装的驱动、系统服务启动项。</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 bg-slate-800 p-4 rounded-lg border border-slate-700 flex flex-col justify-center items-center text-center">
+                            <div className={`w-32 h-32 rounded-lg shadow-xl mb-4 transition-all duration-500 flex items-center justify-center border-4 ${themeValue === 1 ? 'bg-white border-gray-200' : 'bg-[#1e1e1e] border-gray-600'}`}>
+                                <div className={`text-4xl ${themeValue === 1 ? 'text-black' : 'text-white'}`}>
+                                    {themeValue === 1 ? '☀️' : '🌙'}
+                                </div>
+                            </div>
+                            <div className="text-gray-300 font-bold">
+                                实时预览：{themeValue === 1 ? "浅色模式" : "深色模式"}
+                            </div>
+                            <div className="text-gray-500 mt-2">
+                                修改右侧注册表数值，<br/>直接控制系统外观。
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 右侧：模拟编辑器 */}
+                    <div className="flex-1 bg-white text-black font-sans flex flex-col border border-gray-400 shadow-xl select-none">
+                        {/* 菜单栏 */}
+                        <div className="bg-gray-100 p-1 border-b flex text-[11px] gap-2">
+                            <span>文件(F)</span><span>编辑(E)</span><span>查看(V)</span><span>收藏夹(A)</span><span>帮助(H)</span>
+                        </div>
+                        {/* 地址栏 */}
+                        <div className="border-b p-1 flex items-center gap-2 bg-white">
+                            <span className="text-gray-400">🖥️</span>
+                            <input type="text" value="Computer\HKEY_CURRENT_USER\Software\Microsoft\Windows\Personalize" readOnly className="w-full border-none outline-none text-gray-600" />
+                        </div>
+                        
+                        <div className="flex flex-1 overflow-hidden">
+                            {/* 树状图 */}
+                            <div className="w-1/3 border-r border-gray-200 p-1 overflow-y-auto bg-white">
+                                <div className="pl-2 flex items-center gap-1"><span className="text-gray-400">📂</span> Computer</div>
+                                <div className="pl-6 flex items-center gap-1 font-bold bg-blue-100 border border-blue-200 text-blue-800"><span className="text-yellow-500">📂</span> HKEY_CURRENT_USER</div>
+                                <div className="pl-10 flex items-center gap-1"><span className="text-yellow-500">📂</span> Software</div>
+                                <div className="pl-14 flex items-center gap-1"><span className="text-yellow-500">📂</span> Microsoft</div>
+                                <div className="pl-16 flex items-center gap-1"><span className="text-yellow-500">📂</span> Windows</div>
+                                <div className="pl-20 flex items-center gap-1 bg-gray-200"><span className="text-yellow-500">📂</span> Personalize</div>
+                            </div>
+
+                            {/* 键值列表 */}
+                            <div className="flex-1 bg-white flex flex-col relative">
+                                <div className="grid grid-cols-3 border-b border-gray-200 bg-gray-50 text-gray-500 px-2 py-1">
                                     <span>名称</span>
                                     <span>类型</span>
                                     <span>数据</span>
                                 </div>
-                                <div className="grid grid-cols-3 py-1 hover:bg-blue-50 cursor-pointer bg-blue-100 group">
-                                    <span>🔑 MouseSpeed</span>
-                                    <span>REG_SZ</span>
-                                    <span className="font-bold">{speed}</span>
+                                <div className="p-2">
+                                    <div className="flex items-center gap-2 text-red-500 text-[10px] mb-2 border border-red-200 bg-red-50 p-1">
+                                        ⚠️ 警告：修改注册表有风险，请勿在真实系统中随意操作。
+                                    </div>
+                                    <div className="grid grid-cols-3 py-1 px-1 hover:bg-blue-50 cursor-default">
+                                        <span className="text-red-400">ab (默认)</span>
+                                        <span>REG_SZ</span>
+                                        <span>(数值未设置)</span>
+                                    </div>
+                                    <div 
+                                        className="grid grid-cols-3 py-1 px-1 hover:bg-blue-100 cursor-pointer bg-blue-50 border border-blue-200"
+                                        onClick={() => setSelectedKey('AppsUseLightTheme')}
+                                    >
+                                        <span className="flex items-center gap-1"><span className="text-blue-500">011</span> AppsUseLightTheme</span>
+                                        <span>REG_DWORD</span>
+                                        <span>0x0000000{themeValue} ({themeValue})</span>
+                                    </div>
+                                    <div className="grid grid-cols-3 py-1 px-1 hover:bg-blue-50 cursor-default opacity-50">
+                                        <span className="flex items-center gap-1"><span className="text-blue-500">011</span> SystemUsesLightTheme</span>
+                                        <span>REG_DWORD</span>
+                                        <span>0x00000001 (1)</span>
+                                    </div>
                                 </div>
-                                <div className="mt-8 p-4 bg-gray-100 border rounded">
-                                    <label className="block mb-2 font-bold">编辑字符串 (模拟)</label>
-                                    <input 
-                                        type="range" min="0" max="20" 
-                                        value={speed} 
-                                        onChange={(e) => setSpeed(e.target.value)}
-                                        className="w-full"
-                                    />
-                                </div>
+
+                                {/* 弹窗模拟 */}
+                                {selectedKey && (
+                                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                        <div className="bg-white border shadow-2xl w-64 p-3 text-xs flex flex-col gap-3 font-sans">
+                                            <div>
+                                                <div className="font-bold mb-1">编辑 DWORD (32位) 值</div>
+                                                <div className="mb-1">数值名称(N):</div>
+                                                <input type="text" value="AppsUseLightTheme" disabled className="w-full border bg-gray-100 p-1 mb-2 text-gray-500" />
+                                                <div className="mb-1">数值数据(V):</div>
+                                                <input 
+                                                    type="number" 
+                                                    min="0" max="1" 
+                                                    value={themeValue} 
+                                                    onChange={(e) => toggleTheme(e.target.value)}
+                                                    className="w-full border p-1 focus:border-blue-500 outline-none" 
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            <div className="flex justify-end gap-2">
+                                                <button onClick={() => setSelectedKey(null)} className="px-3 py-1 border bg-gray-100 hover:bg-gray-200 rounded-sm">确定</button>
+                                                <button onClick={() => setSelectedKey(null)} className="px-3 py-1 border bg-gray-100 hover:bg-gray-200 rounded-sm">取消</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
+                        </div>
+                        {/* 状态栏 */}
+                        <div className="border-t bg-gray-50 p-1 text-gray-500">
+                            Computer\HKEY_CURRENT_USER\Software\Microsoft\Windows\Personalize
                         </div>
                     </div>
                 </div>
             );
         };
 
-        // --- 4. 任务管理器 (Windows 10/11 风格重绘版 + 性能Tab联动) ---
+        // --- 6. 任务管理器 (Windows 10/11 风格重绘版 + 性能Tab联动) ---
         const TaskManagerSection = () => {
             const [activeTab, setActiveTab] = useState('processes'); // processes, performance
             const [selectedId, setSelectedId] = useState(null);
@@ -677,7 +1145,7 @@
             );
         };
 
-        // --- 5. 环境变量 (模拟真实操作) ---
+        // --- 7. 环境变量 (模拟真实操作) ---
         const EnvVarSection = () => {
             const [terminalInput, setTerminalInput] = useState('');
             const [terminalOutput, setTerminalOutput] = useState([
@@ -878,7 +1346,9 @@
 
             const MENU_ITEMS = [
                 { id: 'cmd', icon: '💻', title: '控制台 (CMD/PS)', desc: '真正的权力中心' },
-                { id: 'file', icon: '🗄️', title: '文件系统', desc: '分区、格式化与扩展名' },
+                { id: 'file', icon: '🗄️', title: '文件系统', desc: '分区、格式化与删除原理' },
+                { id: 'path', icon: '📂', title: '路径与移动', desc: '迷宫导航与死链' },
+                { id: 'driver', icon: '🎧', title: '驱动程序', desc: '硬件翻译官' },
                 { id: 'registry', icon: '🧬', title: '注册表', desc: '系统的 DNA' },
                 { id: 'task', icon: '💓', title: '任务管理器', desc: '隐形的工作者' },
                 { id: 'env', icon: '🗺️', title: '环境变量', desc: '系统通讯录' },
@@ -888,6 +1358,8 @@
                 switch(activeTab) {
                     case 'cmd': return <TerminalSection />;
                     case 'file': return <FileSystemSection />;
+                    case 'path': return <PathSection />;
+                    case 'driver': return <DriverSection />;
                     case 'registry': return <RegistrySection />;
                     case 'task': return <TaskManagerSection />;
                     case 'env': return <EnvVarSection />;
@@ -903,7 +1375,7 @@
                                 <span className="text-cyan-400">WIN</span>
                                 <span className="font-light">INTERNALS</span>
                             </h1>
-                            <p className="text-xs text-slate-400 mt-1">进阶指南 v2.5</p>
+                            <p className="text-xs text-slate-400 mt-1">进阶指南 v3.2</p>
                         </div>
                         <nav className="flex-1 p-4 space-y-2">
                             {MENU_ITEMS.map(item => (
@@ -928,6 +1400,8 @@
                             <div className="text-slate-300 leading-relaxed">
                                 {activeTab === 'cmd' && "按住 Shift + 右键点击文件夹背景，可以选择“在此处打开 PowerShell 窗口”。"}
                                 {activeTab === 'file' && "尝试在地址栏输入 'cmd' 然后回车，可以直接在这个目录打开终端。"}
+                                {activeTab === 'path' && "如果你必须移动软件，请使用 'MKLINK' 命令创建符号链接，骗过系统。"}
+                                {activeTab === 'driver' && "驱动出了问题？尝试进入“安全模式”，那里只会加载最基本的驱动，方便排查。"}
                                 {activeTab === 'registry' && "永远不要在没有备份的情况下删除注册表键值。可以使用 '导出' 功能备份。"}
                                 {activeTab === 'task' && "按 Ctrl + Shift + Esc 可以直接调出任务管理器，比 Ctrl+Alt+Del 更快。"}
                                 {activeTab === 'env' && "修改环境变量后，通常需要重启终端（CMD/PS）才会生效。"}
@@ -946,7 +1420,9 @@
                             </h2>
                             <p className="text-slate-400">
                                 {activeTab === 'cmd' && "图形界面限制了你的想象力，命令行才是真正的“上帝模式”。"}
-                                {activeTab === 'file' && "文件系统不仅是仓库，更是有着森严等级制度的逻辑分区。"}
+                                {activeTab === 'file' && "文件删除不是擦除数据，而是“销户”。这就是为什么数据能恢复，也是为什么覆盖后就完了。"}
+                                {activeTab === 'path' && "系统找不到文件？通常不是文件丢了，而是地图（路径）画错了。"}
+                                {activeTab === 'driver' && "没有驱动，你的 4090 显卡就只能当电风扇用。"}
                                 {activeTab === 'registry' && "Windows 的基因库。所有的设置变动，最终都会写在这里。"}
                                 {activeTab === 'task' && "当电脑卡死时，这里就是你的手术台。找到病灶，切除它。"}
                                 {activeTab === 'env' && "为什么输入 python 电脑就知道去哪里找程序？全靠这个“通讯录”。"}
@@ -954,7 +1430,7 @@
                         </div>
 
                         <div className="flex-1 p-8 pt-0 z-10 overflow-hidden">
-                            <div className="h-full bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-6 shadow-2xl overflow-y-auto">
+                            <div className="h-full bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl p-6 shadow-2xl overflow-y-auto relative">
                                 {renderContent()}
                             </div>
                         </div>

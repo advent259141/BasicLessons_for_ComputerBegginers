@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>计算机基础课程 - 模块六：编程基础</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- JetBrains Mono for Code -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+        }
+        .font-code {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .gradient-text {
+            background: linear-gradient(to right, #4f46e5, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .code-bg {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+        }
+        /* 简单的淡入动画 */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* VS Code 模拟样式 */
+        .vscode-window {
+            background-color: #1e1e1e; /* Editor BG */
+            color: #d4d4d4;
+            border: 1px solid #333;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .vscode-sidebar {
+            background-color: #252526; /* Sidebar BG */
+        }
+        .vscode-activity-bar {
+            background-color: #333333; /* Activity Bar BG */
+        }
+        .vscode-tab-bar {
+            background-color: #252526; /* Tab Header BG */
+        }
+        .vscode-tab {
+            background-color: #2d2d2d;
+            color: #969696;
+            cursor: pointer;
+        }
+        .vscode-tab.active {
+            background-color: #1e1e1e;
+            color: #ffffff;
+            border-top: 1px solid #007acc; /* Active Tab Top Border */
+        }
+        .vscode-gutter {
+            color: #858585;
+            text-align: right;
+            padding-right: 16px;
+            user-select: none;
+        }
+        /* Syntax Highlighting Colors (VS Code Dark+ inspired) */
+        .vs-keyword { color: #569cd6; } /* blue */
+        .vs-control { color: #c586c0; } /* purple */
+        .vs-string { color: #ce9178; } /* orange/brown */
+        .vs-function { color: #dcdcaa; } /* yellow */
+        .vs-comment { color: #6a9955; } /* green */
+        .vs-class { color: #4ec9b0; } /* teal */
+        .vs-number { color: #b5cea8; } /* light green */
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 flex flex-col min-h-screen">
+
+    <!-- 导航栏 -->
+    <nav class="sticky top-0 z-50 bg-white/90 backdrop-blur-md shadow-sm border-b border-slate-200 overflow-x-auto">
+        <div class="container mx-auto px-4 min-w-max md:min-w-0">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-2 cursor-pointer mr-8" onclick="switchView('history')">
+                    <i class="fa-solid fa-code text-indigo-600 text-xl"></i>
+                    <span class="font-bold text-lg text-slate-800 hidden md:inline">模块六：编程基础</span>
+                    <span class="font-bold text-lg text-slate-800 md:hidden">编程基础</span>
+                </div>
+                
+                <!-- 菜单 -->
+                <div class="flex space-x-1">
+                    <button onclick="switchView('history')" id="nav-history" class="nav-btn px-3 py-2 text-indigo-600 bg-indigo-50 font-medium rounded-lg transition text-sm whitespace-nowrap">
+                        <i class="fa-solid fa-clock-rotate-left mr-1"></i> <span class="hidden md:inline">语言</span>演变
+                    </button>
+                    <button onclick="switchView('concepts')" id="nav-concepts" class="nav-btn px-3 py-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition text-sm whitespace-nowrap">
+                        <i class="fa-solid fa-brain mr-1"></i> <span class="hidden md:inline">核心</span>理论
+                    </button>
+                    <!-- 代码解剖 -->
+                    <button onclick="switchView('anatomy')" id="nav-anatomy" class="nav-btn px-3 py-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition text-sm whitespace-nowrap">
+                        <i class="fa-solid fa-microscope mr-1"></i> 代码解剖
+                    </button>
+                    <!-- 图鉴 -->
+                    <button onclick="switchView('languages')" id="nav-languages" class="nav-btn px-3 py-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition text-sm whitespace-nowrap">
+                        <i class="fa-solid fa-book-atlas mr-1"></i> 图鉴
+                    </button>
+                    <!-- 必备工具 -->
+                    <button onclick="switchView('tools')" id="nav-tools" class="nav-btn px-3 py-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition text-sm whitespace-nowrap">
+                        <i class="fa-solid fa-toolbox mr-1"></i> 工具
+                    </button>
+                    <!-- Python 按钮 -->
+                    <button onclick="switchView('python')" id="nav-python" class="nav-btn px-3 py-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition text-sm border border-yellow-400/30 bg-yellow-50/50 whitespace-nowrap">
+                        <i class="fa-brands fa-python mr-1 text-yellow-600"></i> Python<span class="hidden md:inline">详解</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区域 -->
+    <main class="flex-grow container mx-auto px-4 py-8">
+        
+        <!-- 界面 1: 语言演变 (History) - 默认首页 -->
+        <div id="view-history" class="view-section fade-in">
+            <div class="max-w-4xl mx-auto">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl font-bold text-slate-800">从机器码到现代语言</h2>
+                    <p class="text-slate-500 mt-2">编程语言进化史</p>
+                </div>
+                
+                <div class="space-y-8 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-indigo-200 before:z-0">
+                    
+                    <!-- 阶段 1 -->
+                    <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group">
+                        <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-slate-50 bg-indigo-600 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 text-white">
+                            <i class="fa-solid fa-microchip text-sm"></i>
+                        </div>
+                        <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-white p-6 rounded-xl shadow-sm border border-slate-200 z-10">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="font-bold text-lg text-slate-800">第一代：机器码</h3>
+                                <span class="text-xs font-mono bg-indigo-50 text-indigo-600 px-2 py-1 rounded">1940s</span>
+                            </div>
+                            <p class="text-slate-600 text-sm mb-3">计算机的"母语"。由纯粹的 0 和 1 组成，直接控制硬件电路。程序员需要熟记CPU指令集。</p>
+                            <div class="code-bg p-3 rounded text-xs font-mono border border-slate-700">
+                                <span class="text-pink-400">10110000</span> <span class="text-blue-300">01100001</span> <span class="text-gray-400">// MOV AL, 97</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 阶段 2 -->
+                    <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group">
+                        <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-slate-50 bg-indigo-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 text-white">
+                            <i class="fa-solid fa-layer-group text-sm"></i>
+                        </div>
+                        <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-white p-6 rounded-xl shadow-sm border border-slate-200 z-10">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="font-bold text-lg text-slate-800">第二代：汇编语言</h3>
+                                <span class="text-xs font-mono bg-indigo-50 text-indigo-600 px-2 py-1 rounded">1950s</span>
+                            </div>
+                            <p class="text-slate-600 text-sm mb-3">用人类可读的助记符代替二进制。虽然稍微可读，但仍与硬件架构强绑定，需要手动管理内存和寄存器。</p>
+                            <div class="code-bg p-3 rounded text-xs font-mono border border-slate-700 text-green-400">
+                                <span class="text-pink-400">SECTION</span> .data<br>
+                                <span class="text-blue-300">MOV</span> AX, 1 <span class="text-gray-400">; 将1放入AX寄存器</span><br>
+                                <span class="text-blue-300">ADD</span> AX, 2 <span class="text-gray-400">; 加上2</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 阶段 3 -->
+                    <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group">
+                        <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-slate-50 bg-cyan-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 text-white">
+                            <i class="fa-solid fa-terminal text-sm"></i>
+                        </div>
+                        <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-white p-6 rounded-xl shadow-sm border border-slate-200 z-10">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="font-bold text-lg text-slate-800">古早高级语言</h3>
+                                <span class="text-xs font-mono bg-cyan-50 text-cyan-600 px-2 py-1 rounded">1950s-70s</span>
+                            </div>
+                            <p class="text-slate-600 text-sm mb-2"><strong>Fortran, COBOL, C语言</strong>。更接近人类语言，引入了函数、循环等逻辑结构。特别是 C语言，它成为了现代操作系统（Windows, Linux）的基石。</p>
+                        </div>
+                    </div>
+
+                    <!-- 阶段 4 -->
+                    <div class="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group">
+                        <div class="flex items-center justify-center w-10 h-10 rounded-full border-4 border-slate-50 bg-blue-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10 text-white">
+                            <i class="fa-brands fa-python text-sm"></i>
+                        </div>
+                        <div class="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] bg-white p-6 rounded-xl shadow-sm border border-slate-200 z-10">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="font-bold text-lg text-slate-800">现代高级语言</h3>
+                                <span class="text-xs font-mono bg-blue-50 text-blue-600 px-2 py-1 rounded">1990s-Present</span>
+                            </div>
+                            <p class="text-slate-600 text-sm mb-3"><strong>Python, Java, Go, Rust</strong>。极高的抽象层级，拥有自动内存管理（Garbage Collection），庞大的生态库，注重开发效率和安全性。</p>
+                            <div class="code-bg p-3 rounded text-xs font-mono border border-slate-700 text-blue-300">
+                                <span class="text-yellow-300">print</span>(<span class="text-green-300">"Hello World"</span>) <span class="text-gray-400"># 简单，直观</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- 界面 2: 核心概念 (Concepts) -->
+        <div id="view-concepts" class="view-section hidden fade-in">
+            <div class="max-w-5xl mx-auto">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl font-bold text-slate-800">核心编程范式与机制</h2>
+                    <p class="text-slate-500 mt-2">理解代码背后的理论逻辑</p>
+                </div>
+
+                <!-- 运行机制对比 -->
+                <div class="mb-12">
+                    <h3 class="text-xl font-bold text-slate-700 mb-6 border-l-4 border-indigo-500 pl-3">
+                        运行机制：编译型 vs 解释型
+                    </h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <!-- 编译型 -->
+                        <div class="bg-white rounded-xl p-6 border border-indigo-100 shadow-sm">
+                            <div class="flex items-center mb-4">
+                                <div class="bg-indigo-100 text-indigo-600 p-2 rounded-lg mr-3"><i class="fa-solid fa-file-code"></i></div>
+                                <h4 class="text-lg font-bold">编译型 (Compiled)</h4>
+                            </div>
+                            <p class="text-sm text-slate-600 mb-4 bg-slate-50 p-3 rounded">
+                                <strong>类比：翻译整本书。</strong><br>
+                                先把英文书（源代码）完整翻译成中文书（机器码），读者（CPU）直接读中文书。
+                            </p>
+                            <ul class="space-y-2 text-sm text-slate-700">
+                                <li class="flex items-start"><i class="fa-solid fa-check text-green-500 mr-2 mt-1"></i><span><strong>优点：</strong> 执行速度极快，运行时无需源代码。</span></li>
+                                <li class="flex items-start"><i class="fa-solid fa-xmark text-red-500 mr-2 mt-1"></i><span><strong>缺点：</strong> 修改代码后需重新编译，跨平台需重新编译。</span></li>
+                                <li class="flex items-start"><i class="fa-solid fa-tag text-indigo-400 mr-2 mt-1"></i><span><strong>代表：</strong> C, C++, Rust, Go</span></li>
+                            </ul>
+                        </div>
+
+                        <!-- 解释型 -->
+                        <div class="bg-white rounded-xl p-6 border border-cyan-100 shadow-sm">
+                            <div class="flex items-center mb-4">
+                                <div class="bg-cyan-100 text-cyan-600 p-2 rounded-lg mr-3"><i class="fa-solid fa-comments"></i></div>
+                                <h4 class="text-lg font-bold">解释型 (Interpreted)</h4>
+                            </div>
+                            <p class="text-sm text-slate-600 mb-4 bg-slate-50 p-3 rounded">
+                                <strong>类比：同声传译。</strong><br>
+                                演讲者（代码）说一句，翻译官（解释器）翻译一句给听众（CPU）听。
+                            </p>
+                            <ul class="space-y-2 text-sm text-slate-700">
+                                <li class="flex items-start"><i class="fa-solid fa-check text-green-500 mr-2 mt-1"></i><span><strong>优点：</strong> 跨平台极佳（有解释器就行），调试修改方便。</span></li>
+                                <li class="flex items-start"><i class="fa-solid fa-xmark text-red-500 mr-2 mt-1"></i><span><strong>缺点：</strong> 执行速度相对较慢（需要实时翻译）。</span></li>
+                                <li class="flex items-start"><i class="fa-solid fa-tag text-cyan-400 mr-2 mt-1"></i><span><strong>代表：</strong> Python, JavaScript, PHP</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 编程范式对比 -->
+                <div>
+                    <h3 class="text-xl font-bold text-slate-700 mb-6 border-l-4 border-indigo-500 pl-3">
+                        编程思维：面向过程 vs 面向对象
+                    </h3>
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="bg-white border rounded-xl p-6 shadow-sm hover:shadow-md transition">
+                            <h4 class="text-lg font-bold mb-3 text-slate-800">面向过程 (Procedural)</h4>
+                            <p class="text-sm text-slate-600 mb-4">关注<strong>"怎么做"</strong>。把问题分解成一步步的动作。</p>
+                            <div class="bg-slate-100 p-3 rounded text-xs font-mono text-slate-600 mb-3">
+                                1. 打开冰箱()<br>
+                                2. 把大象放进去()<br>
+                                3. 关闭冰箱()
+                            </div>
+                            <p class="text-xs text-slate-500">适合：简单逻辑任务、底层驱动开发（如 C语言）。</p>
+                        </div>
+
+                        <div class="bg-white border rounded-xl p-6 shadow-sm hover:shadow-md transition">
+                            <h4 class="text-lg font-bold mb-3 text-slate-800">面向对象 (OOP)</h4>
+                            <p class="text-sm text-slate-600 mb-4">关注<strong>"谁来做"</strong>。把问题分解成对象，对象拥有属性和行为。</p>
+                            <div class="bg-slate-100 p-3 rounded text-xs font-mono text-slate-600 mb-3">
+                                Class 冰箱 {<br>
+                                &nbsp;&nbsp;功能: 打开(), 关闭(), 放入(物品)<br>
+                                }<br>
+                                冰箱.放入(大象)
+                            </div>
+                            <p class="text-xs text-slate-500">适合：复杂业务系统、大型软件架构（如 Java, Python）。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 界面 3: 代码解剖 (Anatomy) -->
+        <div id="view-anatomy" class="view-section hidden fade-in">
+            <div class="max-w-6xl mx-auto">
+                <div class="text-center mb-10">
+                    <h2 class="text-3xl font-bold text-slate-800">代码解剖室</h2>
+                    <p class="text-slate-500 mt-2">拆解程序的内部结构</p>
+                </div>
+
+                <!-- 通用积木 -->
+                <div class="mb-16">
+                    <h3 class="text-xl font-bold text-slate-700 mb-6 flex items-center">
+                        <i class="fa-solid fa-shapes mr-2 text-indigo-500"></i> 程序的三大通用积木
+                    </h3>
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <!-- 变量 -->
+                        <div class="bg-white p-6 rounded-xl border border-slate-200 text-center relative overflow-hidden group hover:shadow-md transition">
+                            <div class="absolute top-0 right-0 w-16 h-16 bg-blue-100 rounded-bl-full -mr-8 -mt-8"></div>
+                            <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                                <i class="fa-solid fa-box-open"></i>
+                            </div>
+                            <h4 class="font-bold text-lg mb-2">1. 变量 (Variable)</h4>
+                            <p class="text-sm text-slate-600 mb-4">
+                                <strong>就是"盒子"。</strong><br>用来临时存放数据的容器。
+                            </p>
+                            <div class="code-bg p-3 rounded text-left text-xs font-mono">
+                                <span class="text-blue-300">age</span> = <span class="text-pink-300">18</span><br>
+                                <span class="text-blue-300">name</span> = <span class="text-green-300">"Alex"</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 判断 -->
+                        <div class="bg-white p-6 rounded-xl border border-slate-200 text-center relative overflow-hidden group hover:shadow-md transition">
+                            <div class="absolute top-0 right-0 w-16 h-16 bg-yellow-100 rounded-bl-full -mr-8 -mt-8"></div>
+                            <div class="w-16 h-16 bg-yellow-50 text-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                                <i class="fa-solid fa-traffic-light"></i>
+                            </div>
+                            <h4 class="font-bold text-lg mb-2">2. 判断 (Condition)</h4>
+                            <p class="text-sm text-slate-600 mb-4">
+                                <strong>就是"红绿灯"。</strong><br>根据条件决定走哪条路。
+                            </p>
+                            <div class="code-bg p-3 rounded text-left text-xs font-mono">
+                                <span class="text-pink-400">if</span> score > <span class="text-pink-300">60</span>:<br>
+                                &nbsp;&nbsp;<span class="text-yellow-300">print</span>(<span class="text-green-300">"及格"</span>)
+                            </div>
+                        </div>
+
+                        <!-- 循环 -->
+                        <div class="bg-white p-6 rounded-xl border border-slate-200 text-center relative overflow-hidden group hover:shadow-md transition">
+                            <div class="absolute top-0 right-0 w-16 h-16 bg-green-100 rounded-bl-full -mr-8 -mt-8"></div>
+                            <div class="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                                <i class="fa-solid fa-rotate"></i>
+                            </div>
+                            <h4 class="font-bold text-lg mb-2">3. 循环 (Loop)</h4>
+                            <p class="text-sm text-slate-600 mb-4">
+                                <strong>就是"跑圈"。</strong><br>重复执行某段代码，直到累了。
+                            </p>
+                            <div class="code-bg p-3 rounded text-left text-xs font-mono">
+                                <span class="text-pink-400">while</span> not_tired:<br>
+                                &nbsp;&nbsp;<span class="text-yellow-300">run</span>()
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 进阶封装概念 -->
+                <div class="mb-16">
+                    <h3 class="text-xl font-bold text-slate-700 mb-6 flex items-center">
+                        <i class="fa-solid fa-cubes-stacked mr-2 text-indigo-500"></i> 封装与复用：进阶概念
+                    </h3>
+                    <div class="grid md:grid-cols-3 gap-6">
+                        <!-- 函数 -->
+                        <div class="bg-white p-6 rounded-xl border border-slate-200 text-center relative overflow-hidden group hover:shadow-md transition">
+                            <div class="absolute top-0 right-0 w-16 h-16 bg-purple-100 rounded-bl-full -mr-8 -mt-8"></div>
+                            <div class="w-16 h-16 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                                <i class="fa-solid fa-screwdriver-wrench"></i>
+                            </div>
+                            <h4 class="font-bold text-lg mb-2">4. 函数 (Function)</h4>
+                            <p class="text-sm text-slate-600 mb-4">
+                                <strong>就是"工具/菜谱"。</strong><br>把一段复杂的代码打包，给它起个名字，下次直接喊名字就能用。
+                            </p>
+                            <div class="code-bg p-3 rounded text-left text-xs font-mono">
+                                <span class="text-pink-400">def</span> <span class="text-yellow-300">cook</span>():<br>
+                                &nbsp;&nbsp;<span class="text-gray-400"># 做饭的复杂步骤...</span><br>
+                                <span class="text-yellow-300">cook</span>() <span class="text-gray-400"># 直接调用</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 类 -->
+                        <div class="bg-white p-6 rounded-xl border border-slate-200 text-center relative overflow-hidden group hover:shadow-md transition">
+                            <div class="absolute top-0 right-0 w-16 h-16 bg-orange-100 rounded-bl-full -mr-8 -mt-8"></div>
+                            <div class="w-16 h-16 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                                <i class="fa-solid fa-compass-drafting"></i>
+                            </div>
+                            <h4 class="font-bold text-lg mb-2">5. 类 (Class)</h4>
+                            <p class="text-sm text-slate-600 mb-4">
+                                <strong>就是"模具/设计图"。</strong><br>比如“月饼模具”。它规定了造出来的东西长什么样，有什么功能。
+                            </p>
+                            <div class="code-bg p-3 rounded text-left text-xs font-mono">
+                                <span class="text-pink-400">class</span> <span class="text-green-300">Dog</span>:<br>
+                                &nbsp;&nbsp;<span class="text-pink-400">def</span> <span class="text-yellow-300">bark</span>(self):<br>
+                                &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-yellow-300">print</span>(<span class="text-green-300">"汪汪"</span>)
+                            </div>
+                        </div>
+
+                        <!-- 对象 -->
+                        <div class="bg-white p-6 rounded-xl border border-slate-200 text-center relative overflow-hidden group hover:shadow-md transition">
+                            <div class="absolute top-0 right-0 w-16 h-16 bg-teal-100 rounded-bl-full -mr-8 -mt-8"></div>
+                            <div class="w-16 h-16 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                                <i class="fa-solid fa-dog"></i>
+                            </div>
+                            <h4 class="font-bold text-lg mb-2">6. 对象 (Object)</h4>
+                            <p class="text-sm text-slate-600 mb-4">
+                                <strong>就是"具体的实物"。</strong><br>用模具造出来的具体月饼。你可以造出"旺财"、"来福"等多只具体的狗。
+                            </p>
+                            <div class="code-bg p-3 rounded text-left text-xs font-mono">
+                                <span class="text-gray-400"># 用图纸造出实物</span><br>
+                                <span class="text-blue-300">wangcai</span> = <span class="text-green-300">Dog</span>()<br>
+                                <span class="text-blue-300">wangcai</span>.<span class="text-yellow-300">bark</span>()
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hello World 大比拼 (VS Code Style) -->
+                <div>
+                     <h3 class="text-xl font-bold text-slate-800 mb-4">Hello World 大比拼</h3>
+                     <p class="text-slate-500 text-sm mb-6">点击上方的文件名标签，看看不同语言的"Hello World"长什么样。</p>
+                    
+                    <!-- VS Code Container -->
+                    <div class="vscode-window rounded-lg overflow-hidden flex h-[400px]">
+                        <!-- Activity Bar (Far Left) -->
+                        <div class="vscode-activity-bar w-12 flex flex-col items-center py-4 space-y-6 text-slate-500">
+                             <i class="fa-regular fa-file text-white text-xl cursor-pointer hover:text-white"></i>
+                             <i class="fa-solid fa-magnifying-glass text-xl cursor-pointer hover:text-white"></i>
+                             <i class="fa-solid fa-code-branch text-xl cursor-pointer hover:text-white"></i>
+                             <i class="fa-solid fa-bug text-xl cursor-pointer hover:text-white"></i>
+                             <i class="fa-solid fa-cubes text-xl cursor-pointer hover:text-white"></i>
+                             <div class="flex-grow"></div>
+                             <i class="fa-solid fa-gear text-xl cursor-pointer hover:text-white"></i>
+                        </div>
+
+                        <!-- Sidebar (Explorer) -->
+                        <div class="vscode-sidebar w-48 hidden md:flex flex-col text-sm border-r border-gray-700">
+                             <div class="px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider">Explorer</div>
+                             <div class="px-2 py-1 flex items-center bg-slate-700/50 text-white cursor-pointer">
+                                 <i class="fa-solid fa-angle-down mr-2 text-xs"></i>
+                                 <span class="font-bold text-xs">HELLO-WORLD-PROJECT</span>
+                             </div>
+                             <div class="mt-1">
+                                 <div onclick="showCode('python')" class="file-item px-6 py-1 hover:bg-slate-700 cursor-pointer flex items-center text-slate-300" id="file-python">
+                                     <i class="fa-brands fa-python text-yellow-400 mr-2 w-4 text-center"></i> main.py
+                                 </div>
+                                 <div onclick="showCode('java')" class="file-item px-6 py-1 hover:bg-slate-700 cursor-pointer flex items-center text-slate-300" id="file-java">
+                                     <i class="fa-brands fa-java text-red-500 mr-2 w-4 text-center"></i> Main.java
+                                 </div>
+                                 <div onclick="showCode('c')" class="file-item px-6 py-1 hover:bg-slate-700 cursor-pointer flex items-center text-slate-300" id="file-c">
+                                     <span class="text-blue-500 font-bold mr-2 w-4 text-center">C</span> main.c
+                                 </div>
+                                 <div onclick="showCode('js')" class="file-item px-6 py-1 hover:bg-slate-700 cursor-pointer flex items-center text-slate-300" id="file-js">
+                                     <i class="fa-brands fa-js text-yellow-300 mr-2 w-4 text-center"></i> app.js
+                                 </div>
+                             </div>
+                        </div>
+
+                        <!-- Editor Area -->
+                        <div class="flex-grow flex flex-col bg-[#1e1e1e]">
+                             <!-- Tab Bar -->
+                             <div class="vscode-tab-bar flex text-sm overflow-x-auto">
+                                 <div onclick="showCode('python')" class="vscode-tab active px-4 py-2 flex items-center min-w-fit border-r border-[#333]" id="tab-python">
+                                     <i class="fa-brands fa-python text-yellow-400 mr-2 text-xs"></i> main.py
+                                     <i class="fa-solid fa-xmark ml-3 text-xs opacity-0 hover:opacity-100"></i>
+                                 </div>
+                                 <div onclick="showCode('java')" class="vscode-tab px-4 py-2 flex items-center min-w-fit border-r border-[#333]" id="tab-java">
+                                     <i class="fa-brands fa-java text-red-500 mr-2 text-xs"></i> Main.java
+                                 </div>
+                                 <div onclick="showCode('c')" class="vscode-tab px-4 py-2 flex items-center min-w-fit border-r border-[#333]" id="tab-c">
+                                     <span class="text-blue-500 font-bold mr-2 text-xs">C</span> main.c
+                                 </div>
+                                 <div onclick="showCode('js')" class="vscode-tab px-4 py-2 flex items-center min-w-fit border-r border-[#333]" id="tab-js">
+                                     <i class="fa-brands fa-js text-yellow-300 mr-2 text-xs"></i> app.js
+                                 </div>
+                             </div>
+
+                             <!-- Code Content -->
+                             <div class="flex-grow relative font-code text-sm md:text-base p-4 overflow-auto">
+                                 
+                                 <!-- Python -->
+                                 <div id="code-python" class="code-content flex">
+                                     <div class="vscode-gutter">1<br>2<br>3<br>4</div>
+                                     <div class="pl-4">
+                                         <span class="vs-comment"># Python: 极其简洁，没有任何废话</span><br>
+                                         <br>
+                                         <span class="vs-function">print</span>(<span class="vs-string">"Hello, World!"</span>)
+                                     </div>
+                                 </div>
+
+                                 <!-- Java -->
+                                 <div id="code-java" class="code-content hidden flex">
+                                     <div class="vscode-gutter">1<br>2<br>3<br>4<br>5<br>6</div>
+                                     <div class="pl-4">
+                                         <span class="vs-comment">// Java: 必须定义类和主方法，仪式感很强</span><br>
+                                         <span class="vs-keyword">public class</span> <span class="vs-class">Main</span> {<br>
+                                         &nbsp;&nbsp;&nbsp;&nbsp;<span class="vs-keyword">public static void</span> <span class="vs-function">main</span>(String[] args) {<br>
+                                         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;System.out.<span class="vs-function">println</span>(<span class="vs-string">"Hello, World!"</span>);<br>
+                                         &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                                         }
+                                     </div>
+                                 </div>
+
+                                 <!-- C -->
+                                 <div id="code-c" class="code-content hidden flex">
+                                     <div class="vscode-gutter">1<br>2<br>3<br>4<br>5<br>6</div>
+                                     <div class="pl-4">
+                                         <span class="vs-comment">// C: 需要引入头文件，关注底层</span><br>
+                                         <span class="vs-control">#include</span> &lt;stdio.h&gt;<br>
+                                         <br>
+                                         <span class="vs-keyword">int</span> <span class="vs-function">main</span>() {<br>
+                                         &nbsp;&nbsp;&nbsp;&nbsp;<span class="vs-function">printf</span>(<span class="vs-string">"Hello, World!\n"</span>);<br>
+                                         &nbsp;&nbsp;&nbsp;&nbsp;<span class="vs-control">return</span> <span class="vs-number">0</span>;<br>
+                                         }
+                                     </div>
+                                 </div>
+
+                                 <!-- JS -->
+                                 <div id="code-js" class="code-content hidden flex">
+                                     <div class="vscode-gutter">1<br>2<br>3</div>
+                                     <div class="pl-4">
+                                         <span class="vs-comment">// JavaScript: 也可以很简洁，通常运行在浏览器控制台</span><br>
+                                         <span class="vs-class">console</span>.<span class="vs-function">log</span>(<span class="vs-string">"Hello, World!"</span>);
+                                     </div>
+                                 </div>
+
+                             </div>
+
+                             <!-- Status Bar -->
+                             <div class="bg-[#007acc] text-white text-xs px-3 py-1 flex justify-between items-center">
+                                 <div class="flex space-x-4">
+                                     <span><i class="fa-solid fa-code-branch mr-1"></i>main*</span>
+                                     <span class="hidden md:inline"><i class="fa-regular fa-circle-xmark mr-1"></i>0 <i class="fa-solid fa-triangle-exclamation mr-1"></i>0</span>
+                                 </div>
+                                 <div class="flex space-x-4">
+                                     <span class="hidden md:inline">Ln 1, Col 1</span>
+                                     <span class="hidden md:inline">UTF-8</span>
+                                     <span class="hidden md:inline">JavaScript</span>
+                                     <span class="md:hidden"><i class="fa-regular fa-bell"></i></span>
+                                 </div>
+                             </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- 界面 4: 语言图鉴 (Languages) -->
+        <div id="view-languages" class="view-section hidden fade-in">
+            <div class="max-w-6xl mx-auto">
+                <div class="text-center mb-10">
+                    <h2 class="text-3xl font-bold text-slate-800">现代编程语言图鉴</h2>
+                    <p class="text-slate-500 mt-2">根据场景选择最合适的工具</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <!-- Python (Updated to link to new view) -->
+                    <div onclick="switchView('python')" class="cursor-pointer bg-white rounded-xl shadow-sm hover:shadow-xl hover:scale-[1.02] transition p-6 border-t-4 border-yellow-400 group flex flex-col relative overflow-hidden">
+                        <div class="absolute -right-6 -top-6 w-20 h-20 bg-yellow-100/50 rounded-full blur-xl group-hover:bg-yellow-200/50 transition"></div>
+                        <div class="flex justify-between items-start mb-4 relative z-10">
+                            <div class="text-3xl text-yellow-500"><i class="fa-brands fa-python"></i></div>
+                            <span class="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-bold">点我查看详解</span>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2 group-hover:text-yellow-600 transition">Python</h3>
+                        <div class="mb-4 text-xs text-slate-500">
+                            难度: <i class="fa-solid fa-star text-yellow-400"></i><i class="fa-regular fa-star text-yellow-400"></i><i class="fa-regular fa-star text-yellow-400"></i>
+                        </div>
+                        <p class="text-sm text-slate-600 mb-4 flex-grow">
+                            语法如诗般简洁。虽然运行速度不快，但开发效率极高。AI时代的绝对霸主。
+                        </p>
+                        <div class="text-xs font-semibold text-slate-500 bg-slate-50 p-2 rounded border border-slate-100 text-center group-hover:bg-yellow-50 transition">
+                            点击深入学习 Python <i class="fa-solid fa-arrow-right ml-1"></i>
+                        </div>
+                    </div>
+
+                    <!-- Java -->
+                    <div class="bg-white rounded-xl shadow-sm hover:shadow-xl transition p-6 border-t-4 border-red-500 group flex flex-col">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="text-3xl text-red-600"><i class="fa-brands fa-java"></i></div>
+                            <span class="bg-indigo-100 text-indigo-700 text-xs px-2 py-1 rounded-full font-bold">企业基石</span>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2">Java</h3>
+                        <div class="mb-4 text-xs text-slate-500">
+                            难度: <i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i>
+                        </div>
+                        <p class="text-sm text-slate-600 mb-4 flex-grow">
+                            严谨、稳重。拥有庞大的开源生态，大公司后台系统的首选。
+                        </p>
+                        <div class="text-xs font-semibold text-slate-500 bg-slate-50 p-2 rounded border border-slate-100">
+                            适用：企业后台, 安卓, 大数据
+                        </div>
+                    </div>
+
+                    <!-- JavaScript -->
+                    <div class="bg-white rounded-xl shadow-sm hover:shadow-xl transition p-6 border-t-4 border-yellow-300 group flex flex-col">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="text-3xl text-yellow-400"><i class="fa-brands fa-js"></i></div>
+                            <span class="bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full font-bold">Web必修</span>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2">JavaScript</h3>
+                        <div class="mb-4 text-xs text-slate-500">
+                            难度: <i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i><i class="fa-regular fa-star text-yellow-400"></i>
+                        </div>
+                        <p class="text-sm text-slate-600 mb-4 flex-grow">
+                            浏览器唯一能读懂的语言。全栈通吃（前端+Node.js后端）。
+                        </p>
+                        <div class="text-xs font-semibold text-slate-500 bg-slate-50 p-2 rounded border border-slate-100">
+                            适用：网页交互, 小程序, 全栈
+                        </div>
+                    </div>
+
+                    <!-- Go -->
+                    <div class="bg-white rounded-xl shadow-sm hover:shadow-xl transition p-6 border-t-4 border-cyan-500 group flex flex-col">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="text-3xl text-cyan-500"><i class="fa-brands fa-golang"></i></div>
+                            <span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full font-bold">云原生</span>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2">Go</h3>
+                        <div class="mb-4 text-xs text-slate-500">
+                            难度: <i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i><i class="fa-regular fa-star text-yellow-400"></i>
+                        </div>
+                        <p class="text-sm text-slate-600 mb-4 flex-grow">
+                            Google出品。语法简单如C，并发极强。为高并发服务器而生。
+                        </p>
+                        <div class="text-xs font-semibold text-slate-500 bg-slate-50 p-2 rounded border border-slate-100">
+                            适用：微服务, 容器, 区块链
+                        </div>
+                    </div>
+                    
+                    <!-- Rust -->
+                    <div class="bg-white rounded-xl shadow-sm hover:shadow-xl transition p-6 border-t-4 border-orange-600 group flex flex-col">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="text-3xl text-orange-600"><i class="fa-solid fa-gear"></i></div>
+                            <span class="bg-red-100 text-red-700 text-xs px-2 py-1 rounded-full font-bold">性能怪兽</span>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2">Rust</h3>
+                        <div class="mb-4 text-xs text-slate-500">
+                            难度: <i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i>
+                        </div>
+                        <p class="text-sm text-slate-600 mb-4 flex-grow">
+                            极致的性能，极致的安全。学习曲线陡峭，但它是未来的系统级霸主。
+                        </p>
+                        <div class="text-xs font-semibold text-slate-500 bg-slate-50 p-2 rounded border border-slate-100">
+                            适用：操作系统, 游戏引擎
+                        </div>
+                    </div>
+
+                    <!-- C++ -->
+                    <div class="bg-white rounded-xl shadow-sm hover:shadow-xl transition p-6 border-t-4 border-blue-700 group flex flex-col">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="text-3xl text-blue-800 font-bold font-mono">C++</div>
+                            <span class="bg-slate-200 text-slate-700 text-xs px-2 py-1 rounded-full font-bold">基石</span>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2">C++</h3>
+                        <div class="mb-4 text-xs text-slate-500">
+                            难度: <i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i>
+                        </div>
+                        <p class="text-sm text-slate-600 mb-4 flex-grow">
+                            计算机科学的必修课。兼顾底层操作与高级抽象，从操作系统到3A大作游戏都在用。
+                        </p>
+                        <div class="text-xs font-semibold text-slate-500 bg-slate-50 p-2 rounded border border-slate-100">
+                            适用：游戏开发, 高频交易, 系统
+                        </div>
+                    </div>
+
+                    <!-- C# -->
+                    <div class="bg-white rounded-xl shadow-sm hover:shadow-xl transition p-6 border-t-4 border-violet-500 group flex flex-col">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="text-3xl text-violet-600 font-bold font-mono">C#</div>
+                            <span class="bg-violet-100 text-violet-700 text-xs px-2 py-1 rounded-full font-bold">全能型</span>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2">C#</h3>
+                        <div class="mb-4 text-xs text-slate-500">
+                            难度: <i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i><i class="fa-regular fa-star text-yellow-400"></i><i class="fa-regular fa-star text-yellow-400"></i>
+                        </div>
+                        <p class="text-sm text-slate-600 mb-4 flex-grow">
+                            微软的杰作。语法优雅，是Unity游戏引擎的首选语言，也是Windows应用开发的主力。
+                        </p>
+                        <div class="text-xs font-semibold text-slate-500 bg-slate-50 p-2 rounded border border-slate-100">
+                            适用：Unity游戏, Windows应用
+                        </div>
+                    </div>
+
+                    <!-- Swift -->
+                    <div class="bg-white rounded-xl shadow-sm hover:shadow-xl transition p-6 border-t-4 border-orange-500 group flex flex-col">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="text-3xl text-orange-500"><i class="fa-brands fa-swift"></i></div>
+                            <span class="bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full font-bold">Apple</span>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2">Swift</h3>
+                        <div class="mb-4 text-xs text-slate-500">
+                            难度: <i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i><i class="fa-regular fa-star text-yellow-400"></i><i class="fa-regular fa-star text-yellow-400"></i>
+                        </div>
+                        <p class="text-sm text-slate-600 mb-4 flex-grow">
+                            苹果为iOS和macOS打造的现代语言。安全、快速、交互性强，替代了古老的Objective-C。
+                        </p>
+                        <div class="text-xs font-semibold text-slate-500 bg-slate-50 p-2 rounded border border-slate-100">
+                            适用：iOS App, macOS, watchOS
+                        </div>
+                    </div>
+
+                    <!-- TypeScript -->
+                    <div class="bg-white rounded-xl shadow-sm hover:shadow-xl transition p-6 border-t-4 border-blue-600 group flex flex-col">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="text-3xl text-blue-600 font-bold font-mono">TS</div>
+                            <span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full font-bold">进阶Web</span>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2">TypeScript</h3>
+                        <div class="mb-4 text-xs text-slate-500">
+                            难度: <i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i><i class="fa-regular fa-star text-yellow-400"></i><i class="fa-regular fa-star text-yellow-400"></i>
+                        </div>
+                        <p class="text-sm text-slate-600 mb-4 flex-grow">
+                            JavaScript的超集。加上了类型系统，让代码更健壮，大型Web项目的标配。
+                        </p>
+                        <div class="text-xs font-semibold text-slate-500 bg-slate-50 p-2 rounded border border-slate-100">
+                            适用：大型前端项目, React/Vue
+                        </div>
+                    </div>
+
+                    <!-- SQL -->
+                    <div class="bg-white rounded-xl shadow-sm hover:shadow-xl transition p-6 border-t-4 border-slate-500 group flex flex-col">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="text-3xl text-slate-600"><i class="fa-solid fa-database"></i></div>
+                            <span class="bg-slate-200 text-slate-700 text-xs px-2 py-1 rounded-full font-bold">数据</span>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2">SQL</h3>
+                        <div class="mb-4 text-xs text-slate-500">
+                            难度: <i class="fa-solid fa-star text-yellow-400"></i><i class="fa-solid fa-star text-yellow-400"></i><i class="fa-regular fa-star text-yellow-400"></i><i class="fa-regular fa-star text-yellow-400"></i><i class="fa-regular fa-star text-yellow-400"></i>
+                        </div>
+                        <p class="text-sm text-slate-600 mb-4 flex-grow">
+                            结构化查询语言。虽然不是编程语言，但它是与数据库对话的唯一方式，后端开发必学。
+                        </p>
+                        <div class="text-xs font-semibold text-slate-500 bg-slate-50 p-2 rounded border border-slate-100">
+                            适用：数据查询, 数据库管理
+                        </div>
+                    </div>
+
+                    <!-- HTML/CSS -->
+                    <div class="bg-white rounded-xl shadow-sm hover:shadow-xl transition p-6 border-t-4 border-blue-400 group flex flex-col">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="text-3xl text-blue-500 flex gap-2">
+                                <i class="fa-brands fa-html5"></i><i class="fa-brands fa-css3-alt"></i>
+                            </div>
+                            <span class="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full font-bold">基础</span>
+                        </div>
+                        <h3 class="text-xl font-bold mb-2">HTML & CSS</h3>
+                        <div class="mb-4 text-xs text-slate-500">
+                            难度: <i class="fa-solid fa-star text-yellow-400"></i><i class="fa-regular fa-star text-yellow-400"></i>
+                        </div>
+                        <p class="text-sm text-slate-600 mb-4 flex-grow">
+                            它们不是逻辑语言。HTML是骨架，CSS是皮肤。所有网页的基石。
+                        </p>
+                        <div class="text-xs font-semibold text-slate-500 bg-slate-50 p-2 rounded border border-slate-100">
+                            适用：网页构建
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- 界面 5: 必备工具 (Tools) - NEW -->
+        <div id="view-tools" class="view-section hidden fade-in">
+            <div class="max-w-6xl mx-auto">
+                <div class="text-center mb-10">
+                    <h2 class="text-3xl font-bold text-slate-800">程序员的武器库</h2>
+                    <p class="text-slate-500 mt-2">工欲善其事，必先利其器</p>
+                </div>
+
+                 <!-- Concept Clarity Section (New) -->
+                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-6 mb-12">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center">
+                        <i class="fa-solid fa-scale-balanced text-indigo-500 mr-2"></i> 概念辨析：编辑器 vs 编译器 vs IDE
+                    </h3>
+                    <div class="grid md:grid-cols-3 gap-6 text-sm">
+                        <div class="bg-white p-4 rounded-lg shadow-sm">
+                            <div class="font-bold text-slate-800 mb-1">📝 编辑器 (Editor)</div>
+                            <p class="text-slate-600 mb-2"><strong>"写字的纸和笔"</strong></p>
+                            <p class="text-slate-500 text-xs">只负责让你写代码，提供语法高亮。它不懂代码的意思，也不能运行代码。</p>
+                            <div class="mt-2 text-xs text-slate-400">例: Notepad, VS Code (本质上)</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-sm">
+                            <div class="font-bold text-slate-800 mb-1">⚙️ 编译器/解释器 (Compiler)</div>
+                            <p class="text-slate-600 mb-2"><strong>"翻译官"</strong></p>
+                            <p class="text-slate-500 text-xs">负责把你的代码翻译成计算机能懂的机器码并运行。没有图形界面，通常在后台工作。</p>
+                            <div class="mt-2 text-xs text-slate-400">例: GCC, Python.exe</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow-sm border-2 border-indigo-100">
+                            <div class="font-bold text-indigo-700 mb-1">🧰 集成开发环境 (IDE)</div>
+                            <p class="text-slate-600 mb-2"><strong>"瑞士军刀"</strong></p>
+                            <p class="text-slate-500 text-xs">把编辑器、编译器、调试器全部打包在一起。安装好就能直接写代码并运行，最方便。</p>
+                            <div class="mt-2 text-xs text-slate-400">例: PyCharm, Visual Studio</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <!-- 1. IDE -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-lg transition group">
+                        <div class="h-32 bg-blue-600 flex items-center justify-center group-hover:bg-blue-700 transition">
+                            <i class="fa-solid fa-laptop-code text-white text-6xl"></i>
+                        </div>
+                        <div class="p-6 flex-grow flex flex-col">
+                            <h3 class="text-xl font-bold mb-2">1. 编辑器 (IDE)</h3>
+                            <p class="text-sm text-slate-600 mb-4 flex-grow">
+                                <strong>写代码的地方。</strong>就像写文档用 Word，写代码我们用 IDE。它会帮你高亮语法、自动补全、检查错误。
+                            </p>
+                            <div class="space-y-3">
+                                <div class="flex items-center p-2 bg-slate-50 rounded border border-slate-100">
+                                    <span class="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-600 rounded mr-3"><i class="fa-solid fa-code"></i></span>
+                                    <div>
+                                        <div class="font-bold text-sm">VS Code</div>
+                                        <div class="text-xs text-slate-500">宇宙第一编辑器，全能。</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center p-2 bg-slate-50 rounded border border-slate-100">
+                                    <span class="w-8 h-8 flex items-center justify-center bg-green-100 text-green-600 rounded mr-3"><i class="fa-brands fa-python"></i></span>
+                                    <div>
+                                        <div class="font-bold text-sm">PyCharm</div>
+                                        <div class="text-xs text-slate-500">Python 专用神器。</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Terminal -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-lg transition group">
+                        <div class="h-32 bg-slate-800 flex items-center justify-center group-hover:bg-slate-900 transition">
+                            <i class="fa-solid fa-terminal text-green-400 text-6xl"></i>
+                        </div>
+                        <div class="p-6 flex-grow flex flex-col">
+                            <h3 class="text-xl font-bold mb-2">2. 终端 (Terminal)</h3>
+                            <p class="text-sm text-slate-600 mb-4 flex-grow">
+                                <strong>与系统对话的黑窗口。</strong>虽然没有图形界面好看，但它是直接给系统下达指令的最快方式。高手通常都不用鼠标。
+                            </p>
+                            <div class="code-bg p-3 rounded text-xs font-mono mb-3">
+                                <span class="text-blue-300">$</span> mkdir project<br>
+                                <span class="text-blue-300">$</span> cd project<br>
+                                <span class="text-blue-300">$</span> python main.py
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Git -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-lg transition group">
+                        <div class="h-32 bg-orange-600 flex items-center justify-center group-hover:bg-orange-700 transition">
+                            <i class="fa-solid fa-code-branch text-white text-6xl"></i>
+                        </div>
+                        <div class="p-6 flex-grow flex flex-col">
+                            <h3 class="text-xl font-bold mb-2">3. 版本控制 (Git)</h3>
+                            <p class="text-sm text-slate-600 mb-4 flex-grow">
+                                <strong>代码的后悔药。</strong>
+                                当你改崩了代码想回到昨天正常运行的版本时，Git 能救你的命。它还能帮多个人一起协作写代码。
+                            </p>
+                            <ul class="text-sm text-slate-600 space-y-2 bg-orange-50 p-3 rounded">
+                                <li class="flex items-center"><i class="fa-solid fa-rotate-left text-orange-500 mr-2"></i> 一键回退旧版本</li>
+                                <li class="flex items-center"><i class="fa-solid fa-users text-orange-500 mr-2"></i> 多人协作防冲突</li>
+                                <li class="flex items-center"><i class="fa-brands fa-github text-orange-500 mr-2"></i> GitHub 云端备份</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- 4. Package Manager (New) -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-lg transition group">
+                        <div class="h-32 bg-pink-600 flex items-center justify-center group-hover:bg-pink-700 transition">
+                            <i class="fa-solid fa-cubes text-white text-6xl"></i>
+                        </div>
+                        <div class="p-6 flex-grow flex flex-col">
+                            <h3 class="text-xl font-bold mb-2">4. 包管理器 (Package Manager)</h3>
+                            <p class="text-sm text-slate-600 mb-4 flex-grow">
+                                <strong>代码的"应用商店"。</strong>
+                                想用别人造好的轮子（比如 AI 库、绘图库）？不需要去官网下载解压，一行命令自动安装。
+                            </p>
+                            <div class="code-bg p-3 rounded text-xs font-mono mb-3">
+                                <span class="text-gray-400"># Python 安装 pandas 库</span><br>
+                                <span class="text-blue-300">$</span> pip install pandas<br>
+                                <br>
+                                <span class="text-gray-400"># Node.js 安装 React</span><br>
+                                <span class="text-blue-300">$</span> npm install react
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. Debugger (New) -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-lg transition group">
+                        <div class="h-32 bg-teal-600 flex items-center justify-center group-hover:bg-teal-700 transition">
+                            <i class="fa-solid fa-bug-slash text-white text-6xl"></i>
+                        </div>
+                        <div class="p-6 flex-grow flex flex-col">
+                            <h3 class="text-xl font-bold mb-2">5. 调试器 (Debugger)</h3>
+                            <p class="text-sm text-slate-600 mb-4 flex-grow">
+                                <strong>代码的"慢动作回放机"。</strong>
+                                程序运行不对劲？打个<strong>断点 (Breakpoint)</strong>，让代码停下来，一步一步看变量是怎么变的，捉虫神器。
+                            </p>
+                            <div class="flex items-center justify-center bg-teal-50 p-4 rounded h-24">
+                                <div class="flex items-center text-teal-800 text-sm font-mono">
+                                    <i class="fa-solid fa-circle text-red-500 mr-2 text-xs"></i> 
+                                    <span class="mr-2">i = 5</span>
+                                    <i class="fa-solid fa-arrow-right-long mx-2 text-teal-400"></i>
+                                    <span class="font-bold bg-yellow-200 px-1">i = 6?</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 6. AI & Community (New) -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-lg transition group">
+                        <div class="h-32 bg-indigo-600 flex items-center justify-center group-hover:bg-indigo-700 transition">
+                            <i class="fa-solid fa-users-viewfinder text-white text-6xl"></i>
+                        </div>
+                        <div class="p-6 flex-grow flex flex-col">
+                            <h3 class="text-xl font-bold mb-2">6. 外脑 (AI & Search)</h3>
+                            <p class="text-sm text-slate-600 mb-4 flex-grow">
+                                <strong>程序员的"求救热线"。</strong>
+                                遇到报错不要慌。99%的问题别人都遇到过。学会复制报错信息去搜索，是新手进阶的第一步。
+                            </p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="bg-slate-50 p-2 rounded flex items-center justify-center border border-slate-100">
+                                    <i class="fa-brands fa-stack-overflow text-orange-500 mr-2"></i> <span class="text-xs font-bold text-slate-600">StackOverflow</span>
+                                </div>
+                                <div class="bg-slate-50 p-2 rounded flex items-center justify-center border border-slate-100">
+                                    <i class="fa-solid fa-robot text-teal-500 mr-2"></i> <span class="text-xs font-bold text-slate-600">ChatGPT</span>
+                                </div>
+                                <div class="bg-slate-50 p-2 rounded flex items-center justify-center border border-slate-100 col-span-2">
+                                    <i class="fa-brands fa-github text-slate-800 mr-2"></i> <span class="text-xs font-bold text-slate-600">GitHub Copilot</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- 界面 6: Python 详解 (Python) -->
+        <div id="view-python" class="view-section hidden fade-in">
+            <div class="max-w-5xl mx-auto">
+                <!-- Python Hero -->
+                <div class="bg-gradient-to-r from-yellow-100 to-amber-50 rounded-2xl p-8 mb-10 flex flex-col md:flex-row items-center border border-yellow-200">
+                    <div class="md:w-2/3 mb-6 md:mb-0">
+                        <div class="flex items-center mb-4">
+                            <i class="fa-brands fa-python text-5xl text-yellow-600 mr-4"></i>
+                            <h2 class="text-3xl font-bold text-slate-800">Python: 编程世界的瑞士军刀</h2>
+                        </div>
+                        <p class="text-slate-700 text-lg leading-relaxed">
+                            如果你是编程零基础的小白，Python 是你的不二之选。
+                            它不需要你理解复杂的计算机底层原理，只需要你像写英语作文一样写出你的逻辑。
+                            现在的 AI（如 ChatGPT）、数据分析、自动化办公，核心都是 Python。
+                        </p>
+                    </div>
+                    <div class="md:w-1/3 flex justify-center">
+                        <i class="fa-solid fa-rocket text-yellow-500 text-8xl opacity-80"></i>
+                    </div>
+                </div>
+
+                <!-- 为什么是 Python? (Three Cards) -->
+                <div class="grid md:grid-cols-3 gap-6 mb-12">
+                    <div class="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
+                        <div class="w-12 h-12 rounded-lg bg-green-100 text-green-600 flex items-center justify-center mb-4">
+                            <i class="fa-regular fa-comment-dots text-xl"></i>
+                        </div>
+                        <h3 class="font-bold text-lg mb-2">像说话一样简单</h3>
+                        <p class="text-sm text-slate-600">Python 的代码读起来就像在读英语。它去掉了大括号 `{}` 和分号 `;` 等复杂的符号，强制使用“缩进”来排版，不仅美观，而且极易理解。</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
+                        <div class="w-12 h-12 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center mb-4">
+                            <i class="fa-solid fa-cubes text-xl"></i>
+                        </div>
+                        <h3 class="font-bold text-lg mb-2">什么都能做</h3>
+                        <p class="text-sm text-slate-600">被称为“胶水语言”。不管是控制 Excel 自动处理表格，还是训练最先进的 AI 模型，或者是搭建一个网站，Python 都有现成的库（库 = 别人写好的工具）直接用。</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
+                        <div class="w-12 h-12 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center mb-4">
+                            <i class="fa-solid fa-users text-xl"></i>
+                        </div>
+                        <h3 class="font-bold text-lg mb-2">遇到问题有人帮</h3>
+                        <p class="text-sm text-slate-600">拥有世界上最大的开发者社区。你遇到的任何报错，在网上一搜都能找到答案。丰富的教程和文档让自学变得非常容易。</p>
+                    </div>
+                </div>
+
+                <!-- 代码对比 (Visual Comparison) -->
+                <div class="bg-slate-900 rounded-2xl overflow-hidden shadow-2xl mb-12">
+                    <div class="bg-slate-800 px-6 py-3 flex items-center border-b border-slate-700">
+                        <div class="flex space-x-2 mr-4">
+                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        </div>
+                        <span class="text-slate-400 text-sm font-mono">human_vs_python.py</span>
+                    </div>
+                    <div class="grid md:grid-cols-2">
+                        <!-- Left: Human Logic -->
+                        <div class="p-8 border-r border-slate-700">
+                            <h4 class="text-green-400 font-bold mb-4 font-mono">// 人类的逻辑</h4>
+                            <div class="text-slate-300 space-y-4 font-serif text-lg leading-relaxed">
+                                <p>"如果是<span class="text-yellow-300">晴天</span>，我就<span class="text-blue-300">去公园</span>玩。"</p>
+                                <p>"否则，我就<span class="text-blue-300">在家看电影</span>。"</p>
+                                <p>"还有，把我的名字<span class="text-purple-300">重复写 3 遍</span>。"</p>
+                            </div>
+                        </div>
+                        <!-- Right: Python Code -->
+                        <div class="p-8 bg-black/30">
+                            <h4 class="text-yellow-400 font-bold mb-4 font-mono"># Python 代码</h4>
+                            <pre class="font-mono text-sm leading-relaxed text-slate-300">
+<span class="vs-control">if</span> weather == <span class="vs-string">"sunny"</span>:
+    <span class="vs-function">go_to_park</span>()
+<span class="vs-control">else</span>:
+    <span class="vs-function">watch_movie_at_home</span>()
+
+<span class="vs-comment"># 循环也很简单</span>
+<span class="vs-control">for</span> i <span class="vs-control">in</span> <span class="vs-function">range</span>(<span class="vs-number">3</span>):
+    <span class="vs-function">print</span>(<span class="vs-string">"My Name"</span>)</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 应用场景 -->
+                <div>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-6 text-center">学会 Python 能做什么？</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="bg-white p-4 rounded-lg text-center border hover:border-indigo-400 transition group">
+                            <i class="fa-solid fa-file-excel text-3xl text-green-600 mb-2 group-hover:scale-110 transition"></i>
+                            <h4 class="font-bold">办公自动化</h4>
+                            <p class="text-xs text-slate-500 mt-1">自动处理Excel/发邮件</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg text-center border hover:border-indigo-400 transition group">
+                            <i class="fa-solid fa-robot text-3xl text-indigo-600 mb-2 group-hover:scale-110 transition"></i>
+                            <h4 class="font-bold">人工智能</h4>
+                            <p class="text-xs text-slate-500 mt-1">机器学习/ChatGPT开发</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg text-center border hover:border-indigo-400 transition group">
+                            <i class="fa-solid fa-chart-line text-3xl text-red-500 mb-2 group-hover:scale-110 transition"></i>
+                            <h4 class="font-bold">数据分析</h4>
+                            <p class="text-xs text-slate-500 mt-1">爬虫/股票分析/可视化</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg text-center border hover:border-indigo-400 transition group">
+                            <i class="fa-solid fa-globe text-3xl text-blue-500 mb-2 group-hover:scale-110 transition"></i>
+                            <h4 class="font-bold">网站开发</h4>
+                            <p class="text-xs text-slate-500 mt-1">后端逻辑/API接口</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 py-6 mt-auto">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-xs">&copy; 2023 CS 基础课程系列 - 模块六</p>
+        </div>
+    </footer>
+
+    <script>
+        // 核心切换逻辑
+        function switchView(viewId) {
+            // 1. 隐藏所有视图
+            const views = document.querySelectorAll('.view-section');
+            views.forEach(view => view.classList.add('hidden'));
+
+            // 2. 显示目标视图
+            const targetView = document.getElementById('view-' + viewId);
+            if (targetView) {
+                targetView.classList.remove('hidden');
+            }
+
+            // 3. 更新导航栏状态
+            const navButtons = document.querySelectorAll('.nav-btn');
+            navButtons.forEach(btn => {
+                // 重置所有按钮样式
+                btn.classList.remove('text-indigo-600', 'bg-indigo-50');
+                btn.classList.add('text-slate-500');
+                
+                // 特殊处理 Python 按钮的样式
+                if(btn.id === 'nav-python') {
+                     btn.classList.remove('bg-yellow-50/50', 'border-yellow-400/30');
+                     btn.classList.add('border', 'border-transparent');
+                }
+
+                // 高亮当前按钮
+                if (btn.id === 'nav-' + viewId) {
+                    btn.classList.remove('text-slate-500', 'border-transparent');
+                    if(viewId === 'python') {
+                         btn.classList.add('text-indigo-600', 'bg-yellow-100', 'border-yellow-400');
+                    } else {
+                         btn.classList.add('text-indigo-600', 'bg-indigo-50');
+                    }
+                } else if(btn.id === 'nav-python') {
+                    // 恢复 Python 按钮的默认特殊样式
+                     btn.classList.add('border-yellow-400/30', 'bg-yellow-50/50');
+                }
+            });
+
+            // 4. 滚动到顶部
+            window.scrollTo(0, 0);
+        }
+
+        // 代码切换逻辑 (Hello World 比拼)
+        function showCode(lang) {
+            // 隐藏所有代码块
+            document.querySelectorAll('.code-content').forEach(el => el.classList.add('hidden'));
+            // 显示目标代码块
+            document.getElementById('code-' + lang).classList.remove('hidden');
+            document.getElementById('code-' + lang).classList.add('flex'); // Ensure flex for layout
+
+            // 更新标签页状态
+            document.querySelectorAll('.vscode-tab').forEach(tab => {
+                tab.classList.remove('active');
+                tab.classList.add('bg-[#2d2d2d]', 'text-[#969696]', 'border-[#2d2d2d]');
+            });
+            const activeTab = document.getElementById('tab-' + lang);
+            if(activeTab) {
+                activeTab.classList.add('active');
+                activeTab.classList.remove('bg-[#2d2d2d]', 'text-[#969696]', 'border-[#2d2d2d]');
+            }
+
+            // 更新侧边栏高亮
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.classList.remove('bg-slate-700');
+            });
+            const activeFile = document.getElementById('file-' + lang);
+            if(activeFile) {
+                activeFile.classList.add('bg-slate-700');
+            }
+        }
+    </script>
+</body>
+</html>
